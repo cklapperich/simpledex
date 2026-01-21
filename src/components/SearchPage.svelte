@@ -20,7 +20,12 @@
     }
 
     const query = searchQuery.trim();
-    const queryLower = query.toLowerCase();
+    let queryLower = query.toLowerCase();
+
+    // Handle common set name aliases
+    if (queryLower === 'base set') {
+      queryLower = 'base';
+    }
 
     // Check if query matches a set name exactly (case-insensitive) using pre-built index
     const setCards = setMap.get(queryLower);
