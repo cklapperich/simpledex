@@ -30,7 +30,10 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 - folders/collections
 - deckbuilder
 - card scanner
-- virtual scrollnig
+- virtual scrolling for card lists
+- option for list-form for collections and decks that dont show images
+- make the google login a modal/popup
+- figure out why initial page load is so slow
 
 **MAYBE**
 - price tracking
