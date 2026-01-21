@@ -22,11 +22,16 @@ export function enrichCollectionData(
 
   // Sort by set name, then by card number
   enriched.sort((a, b) => {
+    // Handle undefined cards or properties
+    if (!a || !b) return 0;
+    if (!a.set || !b.set) return 0;
+
     // First compare by set name
     const setCompare = a.set.localeCompare(b.set);
     if (setCompare !== 0) return setCompare;
 
     // Then compare by card number (convert to numbers if possible)
+    if (!a.number || !b.number) return 0;
     const aNum = parseInt(a.number);
     const bNum = parseInt(b.number);
     if (!isNaN(aNum) && !isNaN(bNum)) {

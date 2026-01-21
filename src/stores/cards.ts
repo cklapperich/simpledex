@@ -47,6 +47,9 @@ function createCardsStore() {
   const setMap = derived(allCards, $cards => {
     const map = new Map<string, Card[]>();
     for (const card of $cards) {
+      // Skip cards with undefined set
+      if (!card || !card.set) continue;
+
       const key = card.set.toLowerCase();
       if (!map.has(key)) {
         map.set(key, []);

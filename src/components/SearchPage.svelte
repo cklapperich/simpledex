@@ -114,10 +114,15 @@
     if (collectionOnly) {
       // Collection mode: sort by set name, then by number
       cards.sort((a, b) => {
+        // Handle undefined cards or properties
+        if (!a || !b) return 0;
+        if (!a.set || !b.set) return 0;
+
         const setCompare = a.set.localeCompare(b.set);
         if (setCompare !== 0) return setCompare;
 
         // Parse numbers for proper numeric sorting
+        if (!a.number || !b.number) return 0;
         const aNum = parseInt(a.number);
         const bNum = parseInt(b.number);
 
@@ -130,7 +135,10 @@
       });
     } else {
       // Search mode: sort by release date (newest first)
-      cards.sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
+      cards.sort((a, b) => {
+        if (!a || !b || !a.releaseDate || !b.releaseDate) return 0;
+        return b.releaseDate.localeCompare(a.releaseDate);
+      });
     }
 
     return cards;
