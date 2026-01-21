@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { Document } from 'flexsearch';
   import type { Card } from '../types';
   import SearchBar from './SearchBar.svelte';
-  import CardGrid from './CardGrid.svelte';
+  import CardItem from './CardItem.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import DeckCardList from './DeckCardList.svelte';
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
@@ -11,18 +12,18 @@
   import { decks } from '../stores/decks';
   import { activeDeckId, activeView } from '../stores/view';
   import { exportToPTCGO, importFromPTCGO, validateDeck } from '../utils/deckUtils';
+  import { MODERN_SERIES } from '../constants';
+  import { sortCardsBySetAndNumber } from '../utils/cardSorting';
+  import { matchesFilters, normalizeSetName } from '../utils/cardFilters';
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
-  let indexReady = $state(false);
   let searchIndex: Document<Card>;
-  let activeFilters = $state<Set<string>>(new Set());
+  let activeFilters = $state(new SvelteSet<string>());
   let editingName = $state(false);
   let tempName = $state('');
   let importText = $state('');
   let showImportModal = $state(false);
-
-  const MODERN_SERIES = ['Black & White', 'XY', 'Sun & Moon', 'Sword & Shield', 'Scarlet & Violet', 'Mega Evolution'];
 
   const currentDeck = $derived($activeDeckId ? $decks[$activeDeckId] : null);
   const validation = $derived(currentDeck ? validateDeck(currentDeck, $cardMap) : { isValid: true, cardCount: 0, warnings: [] });
@@ -45,11 +46,7 @@
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.trim();
-      let queryLower = query.toLowerCase();
-
-      if (queryLower === 'base set') {
-        queryLower = 'base';
-      }
+      const queryLower = normalizeSetName(query);
 
       cards = cards.filter(card => {
         return (
@@ -67,27 +64,11 @@
 
     // Apply active filters
     if (activeFilters.size > 0) {
-      cards = cards.filter(matchesFilters);
+      cards = cards.filter(card => matchesFilters(card, activeFilters));
     }
 
     // Sort by set name, then by number
-    cards.sort((a, b) => {
-      if (!a || !b) return 0;
-      if (!a.set || !b.set) return 0;
-
-      const setCompare = a.set.localeCompare(b.set);
-      if (setCompare !== 0) return setCompare;
-
-      if (!a.number || !b.number) return 0;
-      const aNum = parseInt(a.number);
-      const bNum = parseInt(b.number);
-
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        return aNum - bNum;
-      }
-
-      return a.number.localeCompare(b.number);
-    });
+    sortCardsBySetAndNumber(cards);
 
     return cards;
   });
@@ -97,34 +78,13 @@
   }
 
   function handleFilterToggle(filter: string) {
-    const newFilters = new Set(activeFilters);
+    const newFilters = new SvelteSet(activeFilters);
     if (newFilters.has(filter)) {
       newFilters.delete(filter);
     } else {
       newFilters.add(filter);
     }
     activeFilters = newFilters;
-  }
-
-  function matchesFilters(card: Card): boolean {
-    if (activeFilters.size === 0) return true;
-
-    for (const filter of activeFilters) {
-      if (card.types && card.types.includes(filter)) {
-        return true;
-      }
-      if (filter === 'Energy' && card.supertype === 'Energy') {
-        return true;
-      }
-      if (filter === 'Trainer' && card.supertype === 'Trainer') {
-        return true;
-      }
-      if (card.supertype === 'Trainer' && card.subtypes.includes(filter)) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   function handleCardClick(cardId: string) {
@@ -235,8 +195,6 @@
       }
     } catch (error) {
       console.error('Error loading search index:', error);
-    } finally {
-      indexReady = true;
     }
   });
 </script>
@@ -323,7 +281,7 @@
         <div class="border-t border-gray-300 mb-4"></div>
 
         <!-- Cards Grid -->
-        {#if $cardsLoading || !indexReady}
+        {#if $cardsLoading}
           <div class="flex items-center justify-center py-20">
             <div class="text-gray-600">Loading cards...</div>
           </div>
@@ -336,12 +294,10 @@
         {:else}
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {#each displayedCards as card (card.id)}
-              <div
-                role="button"
-                tabindex="0"
+              <button
+                type="button"
                 class="cursor-pointer hover:opacity-70 transition-opacity"
                 onclick={() => handleCardClick(card.id)}
-                onkeydown={(e) => e.key === 'Enter' && handleCardClick(card.id)}
               >
                 <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
                   <img
@@ -351,7 +307,7 @@
                     class="w-full h-full object-cover"
                   />
                 </div>
-              </div>
+              </button>
             {/each}
           </div>
         {/if}
@@ -371,7 +327,7 @@
         {#if validation.warnings.length > 0}
           <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div class="text-sm font-semibold text-yellow-800 mb-1">Warnings:</div>
-            {#each validation.warnings as warning}
+            {#each validation.warnings as warning, index (index)}
               <div class="text-xs text-yellow-700">• {warning}</div>
             {/each}
           </div>

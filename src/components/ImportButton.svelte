@@ -3,6 +3,7 @@
   import { cardMap } from '../stores/cards';
   import { parseCSV, validateImport } from '../utils/importUtils';
   import type { Collection, ImportResult } from '../types';
+  import Modal from './Modal.svelte';
 
   let fileInput: HTMLInputElement;
   let showWarningModal = $state(false);
@@ -91,10 +92,6 @@
     importResult = null;
     showDetailedErrors = false;
   }
-
-  function getUniqueCount(coll: Collection): number {
-    return Object.keys(coll).length;
-  }
 </script>
 
 <button
@@ -117,78 +114,47 @@
 />
 
 <!-- Warning Modal -->
-{#if showWarningModal}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    onclick={cancelImport}
-    onkeydown={(e) => e.key === 'Escape' && cancelImport()}
-    role="button"
-    tabindex="0"
-  >
-    <div
-      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-    >
-      <div class="flex items-start gap-3 mb-4">
-        <div class="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-          <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div class="flex-1">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Replace Current Collection?</h3>
-          <p class="text-gray-600 mb-4">
-            Import will replace your current collection. You currently have <strong>{$totalCards} cards</strong> in <strong>{getUniqueCount($collection)} unique cards</strong>.
-          </p>
-          {#if importResult}
-            <p class="text-sm text-gray-500 mb-4">
-              The import will add <strong>{importResult.imported} unique cards</strong>.
-              {#if importResult.skipped > 0}
-                <span class="text-yellow-600">{importResult.skipped} card(s) will be skipped.</span>
-              {/if}
-            </p>
+<Modal show={showWarningModal} onClose={cancelImport}>
+  <div class="flex items-start gap-3 mb-4">
+    <div class="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+      <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    </div>
+    <div class="flex-1">
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Replace Current Collection?</h3>
+      <p class="text-gray-600 mb-4">
+        Import will replace your current collection. You currently have <strong>{$totalCards} cards</strong> in <strong>{Object.keys($collection).length} unique cards</strong>.
+      </p>
+      {#if importResult}
+        <p class="text-sm text-gray-500 mb-4">
+          The import will add <strong>{importResult.imported} unique cards</strong>.
+          {#if importResult.skipped > 0}
+            <span class="text-yellow-600">{importResult.skipped} card(s) will be skipped.</span>
           {/if}
-        </div>
-      </div>
-      <div class="flex gap-3 justify-end">
-        <button
-          onclick={cancelImport}
-          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-        >
-          Cancel
-        </button>
-        <button
-          onclick={confirmImport}
-          class="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors font-medium"
-        >
-          Replace Collection
-        </button>
-      </div>
+        </p>
+      {/if}
     </div>
   </div>
-{/if}
+  <div class="flex gap-3 justify-end">
+    <button
+      onclick={cancelImport}
+      class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+    >
+      Cancel
+    </button>
+    <button
+      onclick={confirmImport}
+      class="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors font-medium"
+    >
+      Replace Collection
+    </button>
+  </div>
+</Modal>
 
 <!-- Result Modal -->
-{#if showResultModal && importResult}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    onclick={closeResultModal}
-    onkeydown={(e) => e.key === 'Escape' && closeResultModal()}
-    role="button"
-    tabindex="0"
-  >
-    <div
-      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-    >
+<Modal show={showResultModal && importResult !== null} onClose={closeResultModal}>
+  {#if importResult}
       <div class="flex items-start gap-3 mb-4">
         {#if importResult.success}
           <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -228,7 +194,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Import Failed</h3>
             {#if importResult.errors.length > 0}
               <div class="text-sm text-gray-600 space-y-1 mb-2">
-                {#each importResult.errors as error}
+                {#each importResult.errors as error, index (index)}
                   <p>{error}</p>
                 {/each}
               </div>
@@ -253,7 +219,7 @@
         <div class="mt-4 border-t border-gray-200 pt-4">
           <h4 class="text-sm font-semibold text-gray-900 mb-2">Detailed Error Log</h4>
           <div class="max-h-60 overflow-y-auto bg-gray-50 rounded-lg p-3 text-xs font-mono">
-            {#each importResult.detailedErrors as error, index}
+            {#each importResult.detailedErrors as error, index (index)}
               <div class="mb-2 pb-2 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0">
                 <div class="flex items-start gap-2">
                   <span class="text-gray-500">#{index + 1}</span>
@@ -285,6 +251,5 @@
           Close
         </button>
       </div>
-    </div>
-  </div>
-{/if}
+  {/if}
+</Modal>

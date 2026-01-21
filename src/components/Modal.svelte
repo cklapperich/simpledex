@@ -1,0 +1,42 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+
+  interface Props {
+    show: boolean;
+    onClose: () => void;
+    children: Snippet;
+  }
+
+  let { show, onClose, children }: Props = $props();
+
+  function handleBackdropClick() {
+    onClose();
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  }
+</script>
+
+{#if show}
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    onclick={handleBackdropClick}
+    onkeydown={handleKeydown}
+    role="button"
+    tabindex="0"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
+      {@render children()}
+    </div>
+  </div>
+{/if}

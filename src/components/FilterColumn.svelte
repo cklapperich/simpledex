@@ -35,7 +35,7 @@
   <!-- Energy/Type filters (circular) -->
   <div class="filter-section">
     <div class="section-label">Types</div>
-    {#each energyTypes as type}
+    {#each energyTypes as type (type.id)}
       <button
         class="filter-button circular"
         class:active={activeFilters.has(type.id)}
@@ -54,7 +54,7 @@
   <!-- Category filters (rectangular) -->
   <div class="filter-section">
     <div class="section-label">Cards</div>
-    {#each categories as category}
+    {#each categories as category (category.id)}
       <button
         class="filter-button rectangular"
         class:active={activeFilters.has(category.id)}

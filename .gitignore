@@ -16,6 +16,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.passwords
 
 # Source data (only needed for building cards.json locally)
 pokemon-tcg-data/

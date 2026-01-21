@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { Document } from 'flexsearch';
   import type { Card } from '../types';
   import SearchBar from './SearchBar.svelte';
@@ -9,6 +10,9 @@
   import FilterColumn from './FilterColumn.svelte';
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection, totalCards } from '../stores/collection';
+  import { MODERN_SERIES } from '../constants';
+  import { sortCardsBySetAndNumber, sortCardsByReleaseDate } from '../utils/cardSorting';
+  import { matchesFilters, normalizeSetName } from '../utils/cardFilters';
 
   interface Props {
     collectionOnly?: boolean;
@@ -20,10 +24,7 @@
   let modernOnly = $state(false);
   let indexReady = $state(false);
   let searchIndex: Document<Card>;
-  let activeFilters = $state<Set<string>>(new Set());
-
-  // Modern sets (Black & White onwards)
-  const MODERN_SERIES = ['Black & White', 'XY', 'Sun & Moon', 'Sword & Shield', 'Scarlet & Violet', 'Mega Evolution'];
+  let activeFilters = $state(new SvelteSet<string>());
 
   // Display cards: first 50 if no search, all matching if searching
   const displayedCards = $derived.by(() => {
@@ -44,12 +45,7 @@
       // Apply search filter if query exists
       if (searchQuery.trim()) {
         const query = searchQuery.trim();
-        let queryLower = query.toLowerCase();
-
-        // Handle common set name aliases
-        if (queryLower === 'base set') {
-          queryLower = 'base';
-        }
+        const queryLower = normalizeSetName(query);
 
         // Filter by set name or pokemon name
         cards = cards.filter(card => {
@@ -67,12 +63,7 @@
         cards = $allCards.slice(0, 50);
       } else {
         const query = searchQuery.trim();
-        let queryLower = query.toLowerCase();
-
-        // Handle common set name aliases
-        if (queryLower === 'base set') {
-          queryLower = 'base';
-        }
+        const queryLower = normalizeSetName(query);
 
         // Check if query matches a set name exactly (case-insensitive) using pre-built index
         const setCards = $setMap.get(queryLower);
@@ -83,7 +74,7 @@
           const results = searchIndex.search(query, { field: 'name' });
 
           // FlexSearch returns results grouped by field, flatten and lookup cards
-          const cardSet = new Set<string>();
+          const cardSet = new SvelteSet<string>();
 
           for (const fieldResult of results) {
             for (const cardId of fieldResult.result) {
@@ -107,38 +98,16 @@
 
     // Apply active filters
     if (activeFilters.size > 0) {
-      cards = cards.filter(matchesFilters);
+      cards = cards.filter(card => matchesFilters(card, activeFilters));
     }
 
     // Sort logic
     if (collectionOnly) {
       // Collection mode: sort by set name, then by number
-      cards.sort((a, b) => {
-        // Handle undefined cards or properties
-        if (!a || !b) return 0;
-        if (!a.set || !b.set) return 0;
-
-        const setCompare = a.set.localeCompare(b.set);
-        if (setCompare !== 0) return setCompare;
-
-        // Parse numbers for proper numeric sorting
-        if (!a.number || !b.number) return 0;
-        const aNum = parseInt(a.number);
-        const bNum = parseInt(b.number);
-
-        if (!isNaN(aNum) && !isNaN(bNum)) {
-          return aNum - bNum;
-        }
-
-        // Fallback to string comparison for special numbers
-        return a.number.localeCompare(b.number);
-      });
+      sortCardsBySetAndNumber(cards);
     } else {
       // Search mode: sort by release date (newest first)
-      cards.sort((a, b) => {
-        if (!a || !b || !a.releaseDate || !b.releaseDate) return 0;
-        return b.releaseDate.localeCompare(a.releaseDate);
-      });
+      sortCardsByReleaseDate(cards);
     }
 
     return cards;
@@ -151,43 +120,13 @@
 
   // Filter toggle handler
   function handleFilterToggle(filter: string) {
-    const newFilters = new Set(activeFilters);
+    const newFilters = new SvelteSet(activeFilters);
     if (newFilters.has(filter)) {
       newFilters.delete(filter);
     } else {
       newFilters.add(filter);
     }
     activeFilters = newFilters;
-  }
-
-  // Check if card matches active filters
-  function matchesFilters(card: Card): boolean {
-    if (activeFilters.size === 0) return true;
-
-    // Check each active filter
-    for (const filter of activeFilters) {
-      // Check if it's a type filter (Pokémon energy types)
-      if (card.types && card.types.includes(filter)) {
-        return true;
-      }
-
-      // Check if it's a category filter
-      if (filter === 'Energy' && card.supertype === 'Energy') {
-        return true;
-      }
-
-      // Check for Trainer supertype (matches all trainer cards)
-      if (filter === 'Trainer' && card.supertype === 'Trainer') {
-        return true;
-      }
-
-      // For Trainer subcategories (Item, Supporter, Tool)
-      if (card.supertype === 'Trainer' && card.subtypes.includes(filter)) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   onMount(async () => {

@@ -27,6 +27,7 @@
 
 <div class="min-h-screen bg-white">
   <div class="max-w-4xl mx-auto px-8 py-8">
+    <!-- Safe: Content is from a trusted local markdown file bundled with the app -->
     {@html htmlContent}
   </div>
 </div>

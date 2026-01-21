@@ -20,7 +20,7 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 
 **Eventually**
 - limitless tcg-like searches ie -has:rule_box
-- checkboxes for glc, expanded, and other formats
+- checkboxes to filter for GLC, expanded, and other formats
 - card variant tracking (reverse holofoil, holofoil, etc)
 - add a loading throbber to the initial page load which can be slow
 - import button
@@ -30,6 +30,7 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 - folders/collections
 - deckbuilder
 - card scanner
+- virtual scrollnig
 
 **MAYBE**
 - price tracking

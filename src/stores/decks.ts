@@ -1,7 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { Deck } from '../types';
-
-const STORAGE_KEY = 'decks';
+import { STORAGE_KEYS } from '../constants';
 
 type DeckStore = Record<string, Deck>; // deckId -> Deck
 
@@ -9,7 +8,7 @@ function createDecksStore() {
   // Load initial data from localStorage
   const initialData = (() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEYS.DECKS);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
       console.warn('Failed to load decks from localStorage, using empty store', error);
@@ -22,7 +21,7 @@ function createDecksStore() {
   // Auto-save to localStorage on every change
   subscribe(value => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      localStorage.setItem(STORAGE_KEYS.DECKS, JSON.stringify(value));
     } catch (error) {
       console.error('Failed to save decks to localStorage', error);
     }

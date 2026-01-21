@@ -2,19 +2,20 @@ import { writable, derived, get } from 'svelte/store';
 import type { Collection, CollectionResult } from '../types';
 import { user } from './auth';
 import { loadFromSupabase, saveToSupabase, deleteFromSupabase, mergeCollections, syncFullCollection } from '../utils/collectionSync';
-
-const STORAGE_KEY = 'collection';
-const MAX_QUANTITY = 99;
+import { STORAGE_KEYS, MAX_CARD_QUANTITY } from '../constants';
 
 // Module-level state for tracking current user and sync status
 let currentUserId: string | null = null;
 let isSyncing = false;
 
+// Store for sync errors that can be displayed in UI
+export const syncError = writable<string | null>(null);
+
 function createCollectionStore() {
   // Load initial data from localStorage
   const initialData = (() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEYS.COLLECTION);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
       console.warn('Failed to load collection from localStorage, using empty collection', error);
@@ -27,7 +28,7 @@ function createCollectionStore() {
   // Auto-save to localStorage on every change
   subscribe(value => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      localStorage.setItem(STORAGE_KEYS.COLLECTION, JSON.stringify(value));
     } catch (error) {
       console.error('Failed to save collection to localStorage', error);
     }
@@ -38,13 +39,18 @@ function createCollectionStore() {
     if (!currentUserId || isSyncing) return;
 
     try {
-      if (quantity === 0) {
-        await deleteFromSupabase(currentUserId, cardId);
-      } else {
-        await saveToSupabase(currentUserId, cardId, quantity);
+      syncError.set(null); // Clear any previous errors
+      const result = quantity === 0
+        ? await deleteFromSupabase(currentUserId, cardId)
+        : await saveToSupabase(currentUserId, cardId, quantity);
+
+      if (!result.success) {
+        syncError.set(result.error || 'Sync failed');
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown sync error';
       console.error('Error syncing to Supabase:', error);
+      syncError.set(message);
     }
   }
 
@@ -54,18 +60,24 @@ function createCollectionStore() {
     isSyncing = true;
 
     try {
+      syncError.set(null); // Clear any previous errors
       const localCollection = get({ subscribe });
 
       // Merge localStorage into Supabase
       if (Object.keys(localCollection).length > 0) {
-        await mergeCollections(userId, localCollection);
+        const mergeResult = await mergeCollections(userId, localCollection);
+        if (!mergeResult.success) {
+          syncError.set(mergeResult.error || 'Failed to merge collections');
+        }
       }
 
       // Load merged collection from Supabase
       const supabaseCollection = await loadFromSupabase(userId);
       set(supabaseCollection);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown login sync error';
       console.error('Error during login sync:', error);
+      syncError.set(message);
     } finally {
       isSyncing = false;
     }
@@ -74,16 +86,17 @@ function createCollectionStore() {
   // Handle user logout - keep localStorage, stop syncing
   function handleLogout() {
     currentUserId = null;
+    syncError.set(null); // Clear sync errors on logout
   }
 
-  // Subscribe to user changes
-  user.subscribe($user => {
+  // Subscribe to user changes - store the unsubscribe function to prevent memory leak
+  const unsubscribeUser = user.subscribe(async ($user) => {
     const newUserId = $user?.id || null;
 
     if (newUserId && newUserId !== currentUserId) {
       // User just logged in
       currentUserId = newUserId;
-      handleLogin(newUserId);
+      await handleLogin(newUserId);
     } else if (!newUserId && currentUserId) {
       // User just logged out
       handleLogout();
@@ -99,7 +112,7 @@ function createCollectionStore() {
       update(collection => {
         const current = collection[cardId] || 0;
 
-        if (current >= MAX_QUANTITY) {
+        if (current >= MAX_CARD_QUANTITY) {
           result = { success: false, quantity: current, error: 'MAX_QUANTITY' };
           return collection; // No change
         }

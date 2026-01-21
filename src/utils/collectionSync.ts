@@ -1,12 +1,11 @@
 import { supabase } from '../lib/supabase'
 import type { Collection } from '../types'
+import { DEFAULT_CARD_VARIATION } from '../constants'
 
 interface SyncResult {
   success: boolean
   error?: string
 }
-
-const DEFAULT_VARIATION = 'normal'
 
 export async function loadFromSupabase(userId: string): Promise<Record<string, number>> {
   try {
@@ -14,7 +13,7 @@ export async function loadFromSupabase(userId: string): Promise<Record<string, n
       .from('collections')
       .select('card_id, quantity')
       .eq('user_id', userId)
-      .eq('variation', DEFAULT_VARIATION)
+      .eq('variation', DEFAULT_CARD_VARIATION)
 
     if (error) {
       console.error('Error loading from Supabase:', error)
@@ -46,7 +45,7 @@ export async function saveToSupabase(
       .upsert({
         user_id: userId,
         card_id: cardId,
-        variation: DEFAULT_VARIATION,
+        variation: DEFAULT_CARD_VARIATION,
         quantity,
       })
 
@@ -70,7 +69,7 @@ export async function deleteFromSupabase(userId: string, cardId: string): Promis
       .delete()
       .eq('user_id', userId)
       .eq('card_id', cardId)
-      .eq('variation', DEFAULT_VARIATION)
+      .eq('variation', DEFAULT_CARD_VARIATION)
 
     if (error) {
       console.error('Error deleting from Supabase:', error)
@@ -105,7 +104,7 @@ export async function mergeCollections(
     const upsertData = Object.entries(merged).map(([cardId, quantity]) => ({
       user_id: userId,
       card_id: cardId,
-      variation: DEFAULT_VARIATION,
+      variation: DEFAULT_CARD_VARIATION,
       quantity,
     }))
 
@@ -136,7 +135,7 @@ export async function syncFullCollection(
       .from('collections')
       .delete()
       .eq('user_id', userId)
-      .eq('variation', DEFAULT_VARIATION)
+      .eq('variation', DEFAULT_CARD_VARIATION)
 
     if (deleteError) {
       console.error('Error deleting existing collection:', deleteError)
@@ -147,7 +146,7 @@ export async function syncFullCollection(
     const upsertData = Object.entries(collection).map(([cardId, quantity]) => ({
       user_id: userId,
       card_id: cardId,
-      variation: DEFAULT_VARIATION,
+      variation: DEFAULT_CARD_VARIATION,
       quantity,
     }))
 

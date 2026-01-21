@@ -27,21 +27,21 @@
   </div>
 
   <div class="cards">
-    {#each testCards as cardId}
+    {#each testCards as cardId (cardId)}
       <div class="card">
         <span class="card-id">{cardId}</span>
         <div class="controls">
-          <button on:click={() => handleDecrement(cardId)}>-</button>
+          <button onclick={() => handleDecrement(cardId)}>-</button>
           <span class="quantity">{$collection[cardId] || 0}</span>
-          <button on:click={() => handleIncrement(cardId)}>+</button>
+          <button onclick={() => handleIncrement(cardId)}>+</button>
         </div>
       </div>
     {/each}
   </div>
 
   <div class="actions">
-    <button on:click={() => collection.reset()}>Reset Collection</button>
-    <button on:click={() => console.log(collection.exportData())}>Log Collection Data</button>
+    <button onclick={() => collection.reset()}>Reset Collection</button>
+    <button onclick={() => console.log(collection.exportData())}>Log Collection Data</button>
   </div>
 
   <div class="info">

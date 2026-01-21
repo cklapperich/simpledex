@@ -196,32 +196,6 @@ export function validateImport(
 }
 
 /**
- * PTCGO Deck List Parsing Utilities (for future deck list import feature)
- * These functions are NOT used for CSV collection import/export
- */
-
-/**
- * Build ptcgoCode → setId mapping from cards
- * Used for deck list parsing
- */
-export function buildPTCGOToSetMap(cardMap: Map<string, Card>): Map<string, string> {
-  const map = new Map<string, string>();
-
-  // Special case mappings
-  map.set('ENERGY', 'sve'); // Map generic "Energy" to Scarlet & Violet Energies
-
-  // Build from card data
-  for (const card of cardMap.values()) {
-    if (card.ptcgoCode) {
-      const setId = card.id.split('-')[0];
-      map.set(card.ptcgoCode.toUpperCase(), setId);
-    }
-  }
-
-  return map;
-}
-
-/**
  * Build reverse map for exports: setId → ptcgoCode
  * Used for generating PTCGO reference column in CSV exports
  */
@@ -236,61 +210,4 @@ export function buildSetToPTCGOMap(cardMap: Map<string, Card>): Map<string, stri
   }
 
   return map;
-}
-
-/**
- * Parsed PTCGO line structure
- * Used for deck list parsing
- */
-export interface PTCGOParsedLine {
-  quantity: number;
-  cardName: string;
-  ptcgoCode: string;
-  cardNumber: string;
-  rawLine: string;
-}
-
-/**
- * Parses a PTCGO format line (for deck list imports)
- * Format: [quantity] [card name] [ptcgoCode] [number]
- * Example: "1 Mimikyu TEU 112"
- *
- * This function is used for parsing deck lists, NOT CSV collection imports
- */
-export function parsePTCGOLine(line: string): PTCGOParsedLine | null {
-  // Remove leading asterisk and whitespace if present
-  line = line.trim().replace(/^\*\s*/, '');
-
-  // Split into tokens
-  const tokens = line.split(/\s+/);
-
-  if (tokens.length < 4) {
-    return null; // Not enough tokens
-  }
-
-  // First token is quantity
-  const quantity = parseInt(tokens[0]);
-  if (isNaN(quantity) || quantity < 1 || quantity > 99) {
-    return null; // Invalid quantity
-  }
-
-  // Last token is number
-  const cardNumber = tokens[tokens.length - 1];
-
-  // Second-to-last token is PTCGO code (2-6 uppercase letters, or "Energy")
-  const ptcgoCode = tokens[tokens.length - 2];
-  if (!/^[A-Z]{2,6}$/i.test(ptcgoCode)) {
-    return null; // Invalid PTCGO code
-  }
-
-  // Everything between quantity and PTCGO code is the card name
-  const cardName = tokens.slice(1, tokens.length - 2).join(' ');
-
-  return {
-    quantity,
-    cardName,
-    ptcgoCode: ptcgoCode.toUpperCase(),
-    cardNumber,
-    rawLine: line
-  };
 }
