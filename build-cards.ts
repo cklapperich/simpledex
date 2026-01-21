@@ -13,11 +13,16 @@ interface SourceCard {
     small: string;
     large: string;
   };
+  supertype: string;
+  subtypes: string[];
+  types?: string[];
 }
 
 interface Set {
   id: string;
   name: string;
+  series: string;
+  releaseDate: string;
 }
 
 interface MinimalCard {
@@ -27,6 +32,11 @@ interface MinimalCard {
   number: string;
   image: string;
   setNumber?: string; // Combined field for searching "Set Number"
+  releaseDate: string;
+  series: string;
+  supertype: string;
+  subtypes: string[];
+  types: string[];
 }
 
 const CARDS_DIR = path.join(__dirname, 'pokemon-tcg-data', 'cards', 'en');
@@ -36,8 +46,8 @@ const INDEX_FILE = path.join(__dirname, 'public', 'search-index.json');
 
 async function buildCards() {
   const setsData: Set[] = JSON.parse(fs.readFileSync(SETS_FILE, 'utf-8'));
-  const setMap = new Map<string, string>();
-  setsData.forEach(set => setMap.set(set.id, set.name));
+  const setMap = new Map<string, Set>();
+  setsData.forEach(set => setMap.set(set.id, set));
 
   const cardFiles = fs.readdirSync(CARDS_DIR).filter(file => file.endsWith('.json'));
   const allCards: MinimalCard[] = [];
@@ -48,7 +58,10 @@ async function buildCards() {
 
     for (const card of cards) {
       const setId = card.id.split('-')[0];
-      const setName = setMap.get(setId) || setId;
+      const setData = setMap.get(setId);
+      const setName = setData?.name || setId;
+      const releaseDate = setData?.releaseDate || '1999/01/09';
+      const series = setData?.series || 'Unknown';
 
       allCards.push({
         id: card.id,
@@ -56,7 +69,12 @@ async function buildCards() {
         set: setName,
         number: card.number,
         image: card.images.small,
-        setNumber: `${setName} ${card.number}` // Combined field for easier searching
+        setNumber: `${setName} ${card.number}`, // Combined field for easier searching
+        releaseDate: releaseDate,
+        series: series,
+        supertype: card.supertype,
+        subtypes: card.subtypes || [],
+        types: card.types || []
       });
     }
   }

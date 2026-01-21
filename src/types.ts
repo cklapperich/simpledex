@@ -6,6 +6,11 @@ export interface Card {
   number: string;
   image: string;
   setNumber?: string; // Combined field for searching "Set Number"
+  releaseDate: string; // Format: YYYY/MM/DD
+  series: string; // e.g., "Base", "Black & White", "Scarlet & Violet"
+  supertype: string; // "Pokémon", "Trainer", or "Energy"
+  subtypes: string[]; // e.g., ["Stage 2"], ["Item"], ["Supporter"], ["Basic", "V"]
+  types: string[]; // Pokémon types: ["Fire"], ["Water", "Psychic"], etc.
 }
 
 // Collection format: cardId -> quantity
@@ -17,4 +22,17 @@ export interface CollectionResult {
   success: boolean;
   quantity: number;
   error?: 'MAX_QUANTITY' | 'ALREADY_ZERO';
+}
+
+// Enriched card with quantity for exports
+export interface EnrichedCard extends Card {
+  quantity: number;
+}
+
+// JSON export structure
+export interface CollectionExport {
+  exportDate: string;
+  totalCards: number;
+  totalUniqueCards: number;
+  collection: EnrichedCard[];
 }

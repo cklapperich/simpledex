@@ -6,25 +6,34 @@
 
   // Reactive quantity check using store subscription
   const hasCard = $derived($collection[card.id] > 0);
+  const quantity = $derived($collection[card.id] || 0);
 
   function handleClick() {
-    if (hasCard) {
-      // If card is already in collection, remove it
-      collection.decrement(card.id);
-    } else {
-      // If card is not in collection, add it
-      const result = collection.increment(card.id);
-      if (!result.success) {
-        console.warn('Max quantity reached');
-      }
+    // Clicking anywhere on the card increments the counter
+    const result = collection.increment(card.id);
+    if (!result.success) {
+      console.warn('Max quantity reached');
     }
+  }
+
+  function handleIncrement(e: Event) {
+    e.stopPropagation();
+    const result = collection.increment(card.id);
+    if (!result.success) {
+      console.warn('Max quantity reached');
+    }
+  }
+
+  function handleDecrement(e: Event) {
+    e.stopPropagation();
+    collection.decrement(card.id);
   }
 </script>
 
 <div
   role="button"
   tabindex="0"
-  class="card-item relative group cursor-pointer transition-opacity duration-200 hover:opacity-70"
+  class="relative group cursor-pointer transition-opacity duration-200 hover:opacity-70"
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
 >
@@ -38,14 +47,31 @@
     />
   </div>
 
-  <!-- Checkmark Overlay (conditional) -->
+  <!-- Quantity Controls (centered on card) -->
   {#if hasCard}
     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-      <div class="w-16 h-16 rounded-full bg-gradient-to-br from-teal-600 to-emerald-500
-                  flex items-center justify-center shadow-2xl animate-scale-in">
-        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-        </svg>
+      <div class="flex items-center gap-3 animate-scale-in pointer-events-auto">
+        <button
+          type="button"
+          class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl
+                 flex items-center justify-center transition-colors shadow-xl"
+          onclick={handleDecrement}
+          aria-label="Decrease quantity"
+        >
+          −
+        </button>
+        <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          {quantity}
+        </span>
+        <button
+          type="button"
+          class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl
+                 flex items-center justify-center transition-colors shadow-xl"
+          onclick={handleIncrement}
+          aria-label="Increase quantity"
+        >
+          +
+        </button>
       </div>
     </div>
   {/if}
