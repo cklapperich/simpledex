@@ -2,14 +2,18 @@
 
 ### Data
 1. https://github.com/PokemonTCG/pokemon-tcg-data has already been copied to /pokemon-tcg-data
-card data is s in cards/en/*.json as separate json files
+card data is in cards/en/*.json as separate json files
 
-2. Build script transforms to minimal JSON:
+2. Build script (`npm run build:cards`) transforms to minimal JSON:
 ```json
 [
-  { "id": "base1-4", "name": "Charizard", "set": "Base", "number": "4", "image": "https://images.pokemontcg.io/base1/4.png" 
+  { "id": "base1-4", "name": "Charizard", "set": "Base", "number": "4", "image": "https://images.pokemontcg.io/base1/4.png" }
 ]
 ```
+   - Run manually: `npm run build:cards`
+   - Outputs to `/public/cards.json`
+   - Commit the generated file to repo
+
 3. Bundle ships with app (~2-3MB)
 4. Update manually when new sets release
 
@@ -18,6 +22,12 @@ card data is s in cards/en/*.json as separate json files
 - Vercel (free)
 - localStorage
 - No backend
+
+### Storage
+- Collection store: `/src/stores/collection.ts` (Svelte store with localStorage auto-sync)
+- Type-safe operations: `increment(cardId)`, `decrement(cardId)`, max quantity 99
+- Reactive updates: `$collection[cardId]` and `$totalCards` for UI
+- Storage format: `{ "base1-4": 2, "sv1-25": 1 }` in localStorage key `'collection'`
 
 ### Pages
 1. **Browse/Search** — search bar, grid of cards, double-click to add

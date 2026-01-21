@@ -5,6 +5,7 @@ export interface Card {
   set: string;
   number: string;
   image: string;
+  setNumber?: string; // Combined field for searching "Set Number"
 }
 
 // Collection format: cardId -> quantity
