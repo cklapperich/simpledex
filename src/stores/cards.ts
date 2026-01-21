@@ -39,9 +39,15 @@ function createCardsStore() {
   });
 
   // Derived store for cardMap - O(1) lookups by card ID
-  const cardMap = derived(allCards, $cards =>
-    new Map($cards.map(card => [card.id, card]))
-  );
+  const cardMap = derived(allCards, $cards => {
+    const map = new Map<string, Card>();
+    for (const card of $cards) {
+      // Skip invalid cards
+      if (!card || !card.id) continue;
+      map.set(card.id, card);
+    }
+    return map;
+  });
 
   // Derived store for setMap - instant set name lookups
   const setMap = derived(allCards, $cards => {

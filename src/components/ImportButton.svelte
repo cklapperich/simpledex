@@ -118,8 +118,21 @@
 
 <!-- Warning Modal -->
 {#if showWarningModal}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick={cancelImport}>
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onclick={(e) => e.stopPropagation()}>
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    onclick={cancelImport}
+    onkeydown={(e) => e.key === 'Escape' && cancelImport()}
+    role="button"
+    tabindex="0"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
       <div class="flex items-start gap-3 mb-4">
         <div class="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
           <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,8 +174,21 @@
 
 <!-- Result Modal -->
 {#if showResultModal && importResult}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick={closeResultModal}>
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onclick={(e) => e.stopPropagation()}>
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    onclick={closeResultModal}
+    onkeydown={(e) => e.key === 'Escape' && closeResultModal()}
+    role="button"
+    tabindex="0"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+    >
       <div class="flex items-start gap-3 mb-4">
         {#if importResult.success}
           <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
