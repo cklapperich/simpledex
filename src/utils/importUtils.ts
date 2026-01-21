@@ -54,8 +54,10 @@ function parseCSVRow(row: string): string[] {
 /**
  * Parses CSV content and returns a Collection object
  * Returns ImportResult with errors if parsing fails
+ * Supports both legacy format (Card ID, Card Name, Set, Number, Quantity)
+ * and PTCGO format (PTCGO, Variant, ...)
  */
-export function parseCSV(csvContent: string): {
+export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
   collection?: Collection;
   cardNames?: Map<string, string>;
   result?: ImportResult;
@@ -73,8 +75,26 @@ export function parseCSV(csvContent: string): {
     };
   }
 
-  // Parse and validate headers
+  // Parse headers to detect format
   const headers = parseCSVRow(lines[0]);
+
+  // Check if this is PTCGO format (has PTCGO column)
+  const hasPTCGOColumn = headers.some(h => h.toUpperCase() === 'PTCGO');
+  if (hasPTCGOColumn) {
+    if (!cardMap) {
+      return {
+        result: {
+          success: false,
+          imported: 0,
+          skipped: 0,
+          errors: ['Card map is required for PTCGO format import']
+        }
+      };
+    }
+    return parsePTCGOCSV(csvContent, cardMap);
+  }
+
+  // Legacy format validation
   const expectedHeaders = ['Card ID', 'Card Name', 'Set', 'Number', 'Quantity'];
 
   if (headers.length !== expectedHeaders.length ||
@@ -84,7 +104,7 @@ export function parseCSV(csvContent: string): {
         success: false,
         imported: 0,
         skipped: 0,
-        errors: [`Invalid CSV format - expected headers: ${expectedHeaders.join(', ')}`]
+        errors: [`Invalid CSV format - expected headers: ${expectedHeaders.join(', ')} or PTCGO format`]
       }
     };
   }
@@ -201,4 +221,239 @@ export function validateImport(
     errors,
     detailedErrors: detailedErrors.length > 0 ? detailedErrors : undefined
   };
+}
+
+/**
+ * PTCGO Format Import/Export Utilities
+ */
+
+/**
+ * Build ptcgoCode → setId mapping from cards
+ */
+function buildPTCGOToSetMap(cardMap: Map<string, Card>): Map<string, string> {
+  const map = new Map<string, string>();
+
+  // Special case mappings
+  map.set('ENERGY', 'sve'); // Map generic "Energy" to Scarlet & Violet Energies
+
+  // Build from card data
+  for (const card of cardMap.values()) {
+    if (card.ptcgoCode) {
+      const setId = card.id.split('-')[0];
+      map.set(card.ptcgoCode.toUpperCase(), setId);
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Build reverse map for exports: setId → ptcgoCode
+ */
+export function buildSetToPTCGOMap(cardMap: Map<string, Card>): Map<string, string> {
+  const map = new Map<string, string>();
+
+  for (const card of cardMap.values()) {
+    if (card.ptcgoCode) {
+      const setId = card.id.split('-')[0];
+      map.set(setId, card.ptcgoCode);
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Parsed PTCGO line structure
+ */
+interface PTCGOParsedLine {
+  quantity: number;
+  cardName: string;
+  ptcgoCode: string;
+  cardNumber: string;
+  rawLine: string;
+}
+
+/**
+ * Parses a PTCGO format line
+ * Format: [quantity] [card name] [ptcgoCode] [number]
+ * Example: "1 Mimikyu TEU 112"
+ */
+function parsePTCGOLine(line: string): PTCGOParsedLine | null {
+  // Remove leading asterisk and whitespace if present
+  line = line.trim().replace(/^\*\s*/, '');
+
+  // Split into tokens
+  const tokens = line.split(/\s+/);
+
+  if (tokens.length < 4) {
+    return null; // Not enough tokens
+  }
+
+  // First token is quantity
+  const quantity = parseInt(tokens[0]);
+  if (isNaN(quantity) || quantity < 1 || quantity > 99) {
+    return null; // Invalid quantity
+  }
+
+  // Last token is number
+  const cardNumber = tokens[tokens.length - 1];
+
+  // Second-to-last token is PTCGO code (2-4 uppercase letters)
+  const ptcgoCode = tokens[tokens.length - 2];
+  if (!/^[A-Z]{2,4}$/i.test(ptcgoCode)) {
+    return null; // Invalid PTCGO code
+  }
+
+  // Everything between quantity and PTCGO code is the card name
+  const cardName = tokens.slice(1, tokens.length - 2).join(' ');
+
+  return {
+    quantity,
+    cardName,
+    ptcgoCode: ptcgoCode.toUpperCase(),
+    cardNumber,
+    rawLine: line
+  };
+}
+
+/**
+ * Parses PTCGO format CSV content
+ * Expected format: PTCGO column (+ optional Variant column) + optional other columns
+ */
+export function parsePTCGOCSV(
+  csvContent: string,
+  cardMap: Map<string, Card>
+): {
+  collection?: Collection;
+  cardNames?: Map<string, string>;
+  result?: ImportResult;
+} {
+  const lines = csvContent.split('\n').filter(line => line.trim());
+
+  if (lines.length === 0) {
+    return {
+      result: {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['File is empty']
+      }
+    };
+  }
+
+  // Parse headers
+  const headers = parseCSVRow(lines[0]);
+
+  // Find PTCGO column index
+  const ptcgoIndex = headers.findIndex(h => h.toUpperCase() === 'PTCGO');
+  if (ptcgoIndex === -1) {
+    return {
+      result: {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['CSV must have a "PTCGO" column']
+      }
+    };
+  }
+
+  // Build PTCGO code mapping
+  const ptcgoToSetMap = buildPTCGOToSetMap(cardMap);
+
+  // Parse data rows
+  const collection: Collection = {};
+  const cardNames = new Map<string, string>();
+  const errors: string[] = [];
+  const detailedErrors: ImportError[] = [];
+  let skipped = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCSVRow(lines[i]);
+
+    if (row.length <= ptcgoIndex) {
+      const errorMsg = `Line ${i + 1}: Missing PTCGO column`;
+      errors.push(errorMsg);
+      detailedErrors.push({
+        line: i + 1,
+        message: errorMsg,
+        type: 'parsing'
+      });
+      skipped++;
+      continue;
+    }
+
+    const ptcgoValue = row[ptcgoIndex];
+    if (!ptcgoValue || !ptcgoValue.trim()) {
+      skipped++;
+      continue; // Skip empty PTCGO values
+    }
+
+    // Parse PTCGO line
+    const parsed = parsePTCGOLine(ptcgoValue);
+    if (!parsed) {
+      const errorMsg = `Invalid PTCGO format: "${ptcgoValue}"`;
+      errors.push(`Line ${i + 1}: ${errorMsg}`);
+      detailedErrors.push({
+        line: i + 1,
+        message: errorMsg,
+        type: 'parsing'
+      });
+      skipped++;
+      continue;
+    }
+
+    // Map PTCGO code to set ID
+    const setId = ptcgoToSetMap.get(parsed.ptcgoCode);
+    if (!setId) {
+      const errorMsg = `Unknown PTCGO code: "${parsed.ptcgoCode}"`;
+      errors.push(`Line ${i + 1}: ${errorMsg}`);
+      detailedErrors.push({
+        line: i + 1,
+        cardName: parsed.cardName,
+        message: errorMsg,
+        type: 'validation'
+      });
+      skipped++;
+      continue;
+    }
+
+    // Construct card ID
+    const cardId = `${setId}-${parsed.cardNumber}`;
+
+    // Validate card exists
+    if (!cardMap.has(cardId)) {
+      const errorMsg = `Card not found: ${parsed.cardName} (${cardId})`;
+      errors.push(`Line ${i + 1}: ${errorMsg}`);
+      detailedErrors.push({
+        line: i + 1,
+        cardId,
+        cardName: parsed.cardName,
+        message: errorMsg,
+        type: 'validation'
+      });
+      skipped++;
+      continue;
+    }
+
+    // Add to collection
+    collection[cardId] = parsed.quantity;
+    cardNames.set(cardId, parsed.cardName);
+  }
+
+  const imported = Object.keys(collection).length;
+
+  if (imported === 0 && lines.length > 1) {
+    return {
+      result: {
+        success: false,
+        imported: 0,
+        skipped,
+        errors: errors.length > 0 ? errors : ['No valid cards found in CSV'],
+        detailedErrors
+      }
+    };
+  }
+
+  return { collection, cardNames };
 }

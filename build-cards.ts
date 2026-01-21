@@ -23,6 +23,7 @@ interface Set {
   name: string;
   series: string;
   releaseDate: string;
+  ptcgoCode?: string;
 }
 
 interface MinimalCard {
@@ -37,6 +38,7 @@ interface MinimalCard {
   supertype: string;
   subtypes: string[];
   types: string[];
+  ptcgoCode?: string;
 }
 
 const CARDS_DIR = path.join(__dirname, 'pokemon-tcg-data', 'cards', 'en');
@@ -74,7 +76,8 @@ async function buildCards() {
         series: series,
         supertype: card.supertype,
         subtypes: card.subtypes || [],
-        types: card.types || []
+        types: card.types || [],
+        ptcgoCode: setData?.ptcgoCode || ''
       });
     }
   }

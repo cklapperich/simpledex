@@ -1,4 +1,5 @@
 import type { Collection, Card, EnrichedCard } from '../types';
+import { buildSetToPTCGOMap } from './importUtils';
 
 /**
  * Enriches collection data with full card details from cardMap
@@ -57,7 +58,24 @@ function escapeCSVField(field: string | number): string {
 }
 
 /**
+ * Generates PTCGO format string for a card
+ * Format: [quantity] [card name] [ptcgoCode] [number]
+ * Example: "1 Mimikyu TEU 112"
+ */
+function generatePTCGOFormat(
+  card: Card,
+  quantity: number,
+  ptcgoCodeMap: Map<string, string>
+): string {
+  const setId = card.id.split('-')[0];
+  const ptcgoCode = ptcgoCodeMap.get(setId) || card.ptcgoCode || 'UNKNOWN';
+  return `${quantity} ${card.name} ${ptcgoCode} ${card.number}`;
+}
+
+/**
  * Generates CSV export with proper escaping
+ * Exports in PTCGO-compatible format with rich metadata
+ * Format: PTCGO, Variant, Card ID, Card Name, Set, Number, Quantity
  */
 export function generateCSV(
   collection: Collection,
@@ -65,13 +83,19 @@ export function generateCSV(
 ): string {
   const enrichedCards = enrichCollectionData(collection, cardMap);
 
-  // CSV header
-  const headers = ['Card ID', 'Card Name', 'Set', 'Number', 'Quantity'];
+  // Build PTCGO code map for exports
+  const ptcgoCodeMap = buildSetToPTCGOMap(cardMap);
+
+  // CSV header - PTCGO and Variant first, then all metadata
+  const headers = ['PTCGO', 'Variant', 'Card ID', 'Card Name', 'Set', 'Number', 'Quantity'];
   const rows = [headers.join(',')];
 
   // Add data rows
   for (const card of enrichedCards) {
+    const ptcgoFormat = generatePTCGOFormat(card, card.quantity, ptcgoCodeMap);
     const row = [
+      escapeCSVField(ptcgoFormat),
+      '', // Variant column - empty for now
       escapeCSVField(card.id),
       escapeCSVField(card.name),
       escapeCSVField(card.set),

@@ -25,7 +25,7 @@
 
     try {
       const content = await file.text();
-      const parseResult = parseCSV(content);
+      const parseResult = parseCSV(content, $cardMap);
 
       // Check for parsing errors
       if (parseResult.result) {

@@ -11,6 +11,7 @@ export interface Card {
   supertype: string; // "Pokémon", "Trainer", or "Energy"
   subtypes: string[]; // e.g., ["Stage 2"], ["Item"], ["Supporter"], ["Basic", "V"]
   types: string[]; // Pokémon types: ["Fire"], ["Water", "Psychic"], etc.
+  ptcgoCode?: string; // PTCGO set code (e.g., "TEU", "CEC", "SVE")
 }
 
 // Collection format: cardId -> quantity
