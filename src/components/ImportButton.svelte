@@ -25,7 +25,7 @@
 
     try {
       const content = await file.text();
-      const parseResult = parseCSV(content, $cardMap);
+      const parseResult = parseCSV(content);
 
       // Check for parsing errors
       if (parseResult.result) {
@@ -36,7 +36,7 @@
       }
 
       // Validate against card database
-      const validationResult = validateImport(parseResult.collection!, $cardMap, parseResult.cardNames);
+      const validationResult = validateImport(parseResult.collection!, $cardMap);
 
       if (!validationResult.success) {
         importResult = validationResult;

@@ -47,3 +47,17 @@ export interface ImportError {
   message: string;
   type: 'parsing' | 'validation' | 'quantity';
 }
+
+// Deck structure
+export interface Deck {
+  id: string;
+  name: string;
+  cards: Record<string, number>; // cardId -> quantity (same as Collection)
+}
+
+// Deck validation result
+export interface DeckValidation {
+  isValid: boolean;
+  cardCount: number;
+  warnings: string[];
+}

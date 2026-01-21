@@ -1,8 +1,14 @@
 import { writable, derived, get } from 'svelte/store';
 import type { Collection, CollectionResult } from '../types';
+import { user } from './auth';
+import { loadFromSupabase, saveToSupabase, deleteFromSupabase, mergeCollections, syncFullCollection } from '../utils/collectionSync';
 
 const STORAGE_KEY = 'collection';
 const MAX_QUANTITY = 99;
+
+// Module-level state for tracking current user and sync status
+let currentUserId: string | null = null;
+let isSyncing = false;
 
 function createCollectionStore() {
   // Load initial data from localStorage
@@ -27,6 +33,63 @@ function createCollectionStore() {
     }
   });
 
+  // Helper function to sync a single card to Supabase
+  async function syncToSupabase(cardId: string, quantity: number) {
+    if (!currentUserId || isSyncing) return;
+
+    try {
+      if (quantity === 0) {
+        await deleteFromSupabase(currentUserId, cardId);
+      } else {
+        await saveToSupabase(currentUserId, cardId, quantity);
+      }
+    } catch (error) {
+      console.error('Error syncing to Supabase:', error);
+    }
+  }
+
+  // Handle user login - merge localStorage with Supabase
+  async function handleLogin(userId: string) {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    try {
+      const localCollection = get({ subscribe });
+
+      // Merge localStorage into Supabase
+      if (Object.keys(localCollection).length > 0) {
+        await mergeCollections(userId, localCollection);
+      }
+
+      // Load merged collection from Supabase
+      const supabaseCollection = await loadFromSupabase(userId);
+      set(supabaseCollection);
+    } catch (error) {
+      console.error('Error during login sync:', error);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  // Handle user logout - keep localStorage, stop syncing
+  function handleLogout() {
+    currentUserId = null;
+  }
+
+  // Subscribe to user changes
+  user.subscribe($user => {
+    const newUserId = $user?.id || null;
+
+    if (newUserId && newUserId !== currentUserId) {
+      // User just logged in
+      currentUserId = newUserId;
+      handleLogin(newUserId);
+    } else if (!newUserId && currentUserId) {
+      // User just logged out
+      handleLogout();
+    }
+  });
+
   return {
     subscribe,
 
@@ -44,6 +107,11 @@ function createCollectionStore() {
         result.quantity = current + 1;
         return { ...collection, [cardId]: current + 1 };
       });
+
+      // Sync to Supabase asynchronously (non-blocking)
+      if (result.success && currentUserId) {
+        syncToSupabase(cardId, result.quantity);
+      }
 
       return result;
     },
@@ -72,6 +140,11 @@ function createCollectionStore() {
         return updated;
       });
 
+      // Sync to Supabase asynchronously (non-blocking)
+      if (result.success && currentUserId) {
+        syncToSupabase(cardId, result.quantity);
+      }
+
       return result;
     },
 
@@ -89,6 +162,11 @@ function createCollectionStore() {
 
     importCollection: (newCollection: Collection): void => {
       set(newCollection);
+
+      // Sync full collection to Supabase asynchronously (non-blocking)
+      if (currentUserId) {
+        syncFullCollection(currentUserId, newCollection);
+      }
     }
   };
 }

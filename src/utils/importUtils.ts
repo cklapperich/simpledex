@@ -54,12 +54,10 @@ function parseCSVRow(row: string): string[] {
 /**
  * Parses CSV content and returns a Collection object
  * Returns ImportResult with errors if parsing fails
- * Supports both legacy format (Card ID, Card Name, Set, Number, Quantity)
- * and PTCGO format (PTCGO, Variant, ...)
+ * Only requires: Card ID, Quantity (all other columns optional)
  */
-export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
+export function parseCSV(csvContent: string): {
   collection?: Collection;
-  cardNames?: Map<string, string>;
   result?: ImportResult;
 } {
   const lines = csvContent.split('\n').filter(line => line.trim());
@@ -75,43 +73,24 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
     };
   }
 
-  // Parse headers to detect format
+  // Parse and validate headers - find required columns by name
   const headers = parseCSVRow(lines[0]);
+  const cardIdIndex = headers.findIndex(h => h === 'Card ID');
+  const quantityIndex = headers.findIndex(h => h === 'Quantity');
 
-  // Check if this is PTCGO format (has PTCGO column)
-  const hasPTCGOColumn = headers.some(h => h.toUpperCase() === 'PTCGO');
-  if (hasPTCGOColumn) {
-    if (!cardMap) {
-      return {
-        result: {
-          success: false,
-          imported: 0,
-          skipped: 0,
-          errors: ['Card map is required for PTCGO format import']
-        }
-      };
-    }
-    return parsePTCGOCSV(csvContent, cardMap);
-  }
-
-  // Legacy format validation
-  const expectedHeaders = ['Card ID', 'Card Name', 'Set', 'Number', 'Quantity'];
-
-  if (headers.length !== expectedHeaders.length ||
-      !headers.every((h, i) => h === expectedHeaders[i])) {
+  if (cardIdIndex === -1 || quantityIndex === -1) {
     return {
       result: {
         success: false,
         imported: 0,
         skipped: 0,
-        errors: [`Invalid CSV format - expected headers: ${expectedHeaders.join(', ')} or PTCGO format`]
+        errors: ['CSV must have "Card ID" and "Quantity" columns']
       }
     };
   }
 
   // Parse data rows
   const collection: Collection = {};
-  const cardNames = new Map<string, string>();
   const errors: string[] = [];
   const detailedErrors: ImportError[] = [];
   let skipped = 0;
@@ -119,8 +98,10 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
   for (let i = 1; i < lines.length; i++) {
     const row = parseCSVRow(lines[i]);
 
-    if (row.length !== 5) {
-      const errorMsg = `Line ${i + 1}: Invalid number of fields (expected 5, got ${row.length})`;
+    // Check if row has enough columns
+    const maxIndex = Math.max(cardIdIndex, quantityIndex);
+    if (row.length <= maxIndex) {
+      const errorMsg = `Line ${i + 1}: Missing required columns`;
       errors.push(errorMsg);
       detailedErrors.push({
         line: i + 1,
@@ -131,10 +112,8 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
       continue;
     }
 
-    const [cardId, cardName, , , quantityStr] = row;
-
-    // Store card name for later use
-    cardNames.set(cardId, cardName);
+    const cardId = row[cardIdIndex];
+    const quantityStr = row[quantityIndex];
 
     // Validate quantity
     const quantity = parseInt(quantityStr);
@@ -144,7 +123,6 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
       detailedErrors.push({
         line: i + 1,
         cardId,
-        cardName,
         message: errorMsg,
         type: 'quantity'
       });
@@ -170,7 +148,7 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
     };
   }
 
-  return { collection, cardNames };
+  return { collection };
 }
 
 /**
@@ -179,8 +157,7 @@ export function parseCSV(csvContent: string, cardMap?: Map<string, Card>): {
  */
 export function validateImport(
   collection: Collection,
-  cardMap: Map<string, Card>,
-  cardNames?: Map<string, string>
+  cardMap: Map<string, Card>
 ): ImportResult {
   const validCollection: Collection = {};
   const invalidIds: string[] = [];
@@ -191,10 +168,8 @@ export function validateImport(
       validCollection[cardId] = quantity;
     } else {
       invalidIds.push(cardId);
-      const cardName = cardNames?.get(cardId);
       detailedErrors.push({
         cardId,
-        cardName,
         message: `Card not found in database`,
         type: 'validation'
       });
@@ -206,11 +181,8 @@ export function validateImport(
   const errors: string[] = [];
 
   if (skipped > 0) {
-    // Show card names if available, otherwise show IDs
-    const displayList = invalidIds.slice(0, 5).map(id => {
-      const name = cardNames?.get(id);
-      return name ? `${name} (${id})` : id;
-    });
+    // Show just IDs in summary
+    const displayList = invalidIds.slice(0, 5);
     errors.push(`Skipped ${skipped} card(s) with invalid IDs: ${displayList.join(', ')}${invalidIds.length > 5 ? '...' : ''}`);
   }
 
@@ -224,13 +196,15 @@ export function validateImport(
 }
 
 /**
- * PTCGO Format Import/Export Utilities
+ * PTCGO Deck List Parsing Utilities (for future deck list import feature)
+ * These functions are NOT used for CSV collection import/export
  */
 
 /**
  * Build ptcgoCode → setId mapping from cards
+ * Used for deck list parsing
  */
-function buildPTCGOToSetMap(cardMap: Map<string, Card>): Map<string, string> {
+export function buildPTCGOToSetMap(cardMap: Map<string, Card>): Map<string, string> {
   const map = new Map<string, string>();
 
   // Special case mappings
@@ -249,6 +223,7 @@ function buildPTCGOToSetMap(cardMap: Map<string, Card>): Map<string, string> {
 
 /**
  * Build reverse map for exports: setId → ptcgoCode
+ * Used for generating PTCGO reference column in CSV exports
  */
 export function buildSetToPTCGOMap(cardMap: Map<string, Card>): Map<string, string> {
   const map = new Map<string, string>();
@@ -265,8 +240,9 @@ export function buildSetToPTCGOMap(cardMap: Map<string, Card>): Map<string, stri
 
 /**
  * Parsed PTCGO line structure
+ * Used for deck list parsing
  */
-interface PTCGOParsedLine {
+export interface PTCGOParsedLine {
   quantity: number;
   cardName: string;
   ptcgoCode: string;
@@ -275,11 +251,13 @@ interface PTCGOParsedLine {
 }
 
 /**
- * Parses a PTCGO format line
+ * Parses a PTCGO format line (for deck list imports)
  * Format: [quantity] [card name] [ptcgoCode] [number]
  * Example: "1 Mimikyu TEU 112"
+ *
+ * This function is used for parsing deck lists, NOT CSV collection imports
  */
-function parsePTCGOLine(line: string): PTCGOParsedLine | null {
+export function parsePTCGOLine(line: string): PTCGOParsedLine | null {
   // Remove leading asterisk and whitespace if present
   line = line.trim().replace(/^\*\s*/, '');
 
@@ -299,9 +277,9 @@ function parsePTCGOLine(line: string): PTCGOParsedLine | null {
   // Last token is number
   const cardNumber = tokens[tokens.length - 1];
 
-  // Second-to-last token is PTCGO code (2-4 uppercase letters)
+  // Second-to-last token is PTCGO code (2-6 uppercase letters, or "Energy")
   const ptcgoCode = tokens[tokens.length - 2];
-  if (!/^[A-Z]{2,4}$/i.test(ptcgoCode)) {
+  if (!/^[A-Z]{2,6}$/i.test(ptcgoCode)) {
     return null; // Invalid PTCGO code
   }
 
@@ -315,145 +293,4 @@ function parsePTCGOLine(line: string): PTCGOParsedLine | null {
     cardNumber,
     rawLine: line
   };
-}
-
-/**
- * Parses PTCGO format CSV content
- * Expected format: PTCGO column (+ optional Variant column) + optional other columns
- */
-export function parsePTCGOCSV(
-  csvContent: string,
-  cardMap: Map<string, Card>
-): {
-  collection?: Collection;
-  cardNames?: Map<string, string>;
-  result?: ImportResult;
-} {
-  const lines = csvContent.split('\n').filter(line => line.trim());
-
-  if (lines.length === 0) {
-    return {
-      result: {
-        success: false,
-        imported: 0,
-        skipped: 0,
-        errors: ['File is empty']
-      }
-    };
-  }
-
-  // Parse headers
-  const headers = parseCSVRow(lines[0]);
-
-  // Find PTCGO column index
-  const ptcgoIndex = headers.findIndex(h => h.toUpperCase() === 'PTCGO');
-  if (ptcgoIndex === -1) {
-    return {
-      result: {
-        success: false,
-        imported: 0,
-        skipped: 0,
-        errors: ['CSV must have a "PTCGO" column']
-      }
-    };
-  }
-
-  // Build PTCGO code mapping
-  const ptcgoToSetMap = buildPTCGOToSetMap(cardMap);
-
-  // Parse data rows
-  const collection: Collection = {};
-  const cardNames = new Map<string, string>();
-  const errors: string[] = [];
-  const detailedErrors: ImportError[] = [];
-  let skipped = 0;
-
-  for (let i = 1; i < lines.length; i++) {
-    const row = parseCSVRow(lines[i]);
-
-    if (row.length <= ptcgoIndex) {
-      const errorMsg = `Line ${i + 1}: Missing PTCGO column`;
-      errors.push(errorMsg);
-      detailedErrors.push({
-        line: i + 1,
-        message: errorMsg,
-        type: 'parsing'
-      });
-      skipped++;
-      continue;
-    }
-
-    const ptcgoValue = row[ptcgoIndex];
-    if (!ptcgoValue || !ptcgoValue.trim()) {
-      skipped++;
-      continue; // Skip empty PTCGO values
-    }
-
-    // Parse PTCGO line
-    const parsed = parsePTCGOLine(ptcgoValue);
-    if (!parsed) {
-      const errorMsg = `Invalid PTCGO format: "${ptcgoValue}"`;
-      errors.push(`Line ${i + 1}: ${errorMsg}`);
-      detailedErrors.push({
-        line: i + 1,
-        message: errorMsg,
-        type: 'parsing'
-      });
-      skipped++;
-      continue;
-    }
-
-    // Map PTCGO code to set ID
-    const setId = ptcgoToSetMap.get(parsed.ptcgoCode);
-    if (!setId) {
-      const errorMsg = `Unknown PTCGO code: "${parsed.ptcgoCode}"`;
-      errors.push(`Line ${i + 1}: ${errorMsg}`);
-      detailedErrors.push({
-        line: i + 1,
-        cardName: parsed.cardName,
-        message: errorMsg,
-        type: 'validation'
-      });
-      skipped++;
-      continue;
-    }
-
-    // Construct card ID
-    const cardId = `${setId}-${parsed.cardNumber}`;
-
-    // Validate card exists
-    if (!cardMap.has(cardId)) {
-      const errorMsg = `Card not found: ${parsed.cardName} (${cardId})`;
-      errors.push(`Line ${i + 1}: ${errorMsg}`);
-      detailedErrors.push({
-        line: i + 1,
-        cardId,
-        cardName: parsed.cardName,
-        message: errorMsg,
-        type: 'validation'
-      });
-      skipped++;
-      continue;
-    }
-
-    // Add to collection
-    collection[cardId] = parsed.quantity;
-    cardNames.set(cardId, parsed.cardName);
-  }
-
-  const imported = Object.keys(collection).length;
-
-  if (imported === 0 && lines.length > 1) {
-    return {
-      result: {
-        success: false,
-        imported: 0,
-        skipped,
-        errors: errors.length > 0 ? errors : ['No valid cards found in CSV'],
-        detailedErrors
-      }
-    };
-  }
-
-  return { collection, cardNames };
 }
