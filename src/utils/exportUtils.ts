@@ -1,4 +1,4 @@
-import type { Collection, Card, EnrichedCard, CollectionExport } from '../types';
+import type { Collection, Card, EnrichedCard } from '../types';
 
 /**
  * Enriches collection data with full card details from cardMap
@@ -37,26 +37,6 @@ export function enrichCollectionData(
   });
 
   return enriched;
-}
-
-/**
- * Generates JSON export with metadata
- */
-export function generateJSON(
-  collection: Collection,
-  cardMap: Map<string, Card>
-): string {
-  const enrichedCards = enrichCollectionData(collection, cardMap);
-  const totalCards = enrichedCards.reduce((sum, card) => sum + card.quantity, 0);
-
-  const exportData: CollectionExport = {
-    exportDate: new Date().toISOString(),
-    totalCards,
-    totalUniqueCards: enrichedCards.length,
-    collection: enrichedCards
-  };
-
-  return JSON.stringify(exportData, null, 2);
 }
 
 /**
@@ -133,9 +113,9 @@ export function downloadFile(
 }
 
 /**
- * Generates filename with current date
+ * Generates CSV filename with current date
  */
-export function generateFilename(format: 'json' | 'csv'): string {
+export function generateFilename(format: 'csv'): string {
   const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  return `pokemon-collection-${format}-${date}.${format}`;
+  return `pokemon-collection-csv-${date}.csv`;
 }

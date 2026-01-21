@@ -5,6 +5,7 @@
   import SearchBar from './SearchBar.svelte';
   import CardGrid from './CardGrid.svelte';
   import ExportButton from './ExportButton.svelte';
+  import ImportButton from './ImportButton.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection, totalCards } from '../stores/collection';
@@ -241,7 +242,10 @@
             {/if}
           </p>
         </div>
-        <ExportButton />
+        <div class="flex gap-3">
+          <ImportButton />
+          <ExportButton />
+        </div>
       </div>
     {/if}
 

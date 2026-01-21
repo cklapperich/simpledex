@@ -19,6 +19,11 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 ## Roadmap
 
 **Eventually**
+- limitless tcg-like searches ie -has:rule_box
+- checkboxes for glc, expanded, and other formats
+- card variant tracking (reverse holofoil, holofoil, etc)
+- add a loading throbber to the initial page load which can be slow
+- import button
 - Various UI improvements
 - feedback button
 - Export data to google drive

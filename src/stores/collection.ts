@@ -85,6 +85,10 @@ function createCollectionStore() {
 
     exportData: (): Collection => {
       return get({ subscribe });
+    },
+
+    importCollection: (newCollection: Collection): void => {
+      set(newCollection);
     }
   };
 }

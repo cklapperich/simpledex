@@ -29,10 +29,10 @@ export interface EnrichedCard extends Card {
   quantity: number;
 }
 
-// JSON export structure
-export interface CollectionExport {
-  exportDate: string;
-  totalCards: number;
-  totalUniqueCards: number;
-  collection: EnrichedCard[];
+// Import result structure
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  errors: string[];
 }
