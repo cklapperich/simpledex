@@ -9,6 +9,7 @@
   let showResultModal = $state(false);
   let pendingCollection: Collection | null = $state(null);
   let importResult: ImportResult | null = $state(null);
+  let showDetailedErrors = $state(false);
 
   function handleImportClick() {
     fileInput.click();
@@ -35,7 +36,7 @@
       }
 
       // Validate against card database
-      const validationResult = validateImport(parseResult.collection!, $cardMap);
+      const validationResult = validateImport(parseResult.collection!, $cardMap, parseResult.cardNames);
 
       if (!validationResult.success) {
         importResult = validationResult;
@@ -88,6 +89,7 @@
   function closeResultModal() {
     showResultModal = false;
     importResult = null;
+    showDetailedErrors = false;
   }
 
   function getUniqueCount(coll: Collection): number {
@@ -174,9 +176,20 @@
               Successfully imported <strong>{importResult.imported} unique cards</strong>.
             </p>
             {#if importResult.skipped > 0}
-              <p class="text-sm text-yellow-600">
+              <p class="text-sm text-yellow-600 mb-2">
                 Skipped {importResult.skipped} invalid card(s).
               </p>
+              {#if importResult.detailedErrors && importResult.detailedErrors.length > 0}
+                <button
+                  onclick={() => showDetailedErrors = !showDetailedErrors}
+                  class="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4 transition-transform" class:rotate-90={showDetailedErrors} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  {showDetailedErrors ? 'Hide' : 'Show'} details
+                </button>
+              {/if}
             {/if}
           </div>
         {:else}
@@ -188,16 +201,57 @@
           <div class="flex-1">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Import Failed</h3>
             {#if importResult.errors.length > 0}
-              <div class="text-sm text-gray-600 space-y-1">
+              <div class="text-sm text-gray-600 space-y-1 mb-2">
                 {#each importResult.errors as error}
                   <p>{error}</p>
                 {/each}
               </div>
+              {#if importResult.detailedErrors && importResult.detailedErrors.length > 0}
+                <button
+                  onclick={() => showDetailedErrors = !showDetailedErrors}
+                  class="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4 transition-transform" class:rotate-90={showDetailedErrors} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  {showDetailedErrors ? 'Hide' : 'Show'} details
+                </button>
+              {/if}
             {/if}
           </div>
         {/if}
       </div>
-      <div class="flex justify-end">
+
+      <!-- Detailed Errors Section -->
+      {#if showDetailedErrors && importResult.detailedErrors && importResult.detailedErrors.length > 0}
+        <div class="mt-4 border-t border-gray-200 pt-4">
+          <h4 class="text-sm font-semibold text-gray-900 mb-2">Detailed Error Log</h4>
+          <div class="max-h-60 overflow-y-auto bg-gray-50 rounded-lg p-3 text-xs font-mono">
+            {#each importResult.detailedErrors as error, index}
+              <div class="mb-2 pb-2 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0">
+                <div class="flex items-start gap-2">
+                  <span class="text-gray-500">#{index + 1}</span>
+                  <div class="flex-1">
+                    {#if error.cardName}
+                      <div class="font-semibold text-gray-900">{error.cardName}</div>
+                    {/if}
+                    {#if error.cardId}
+                      <div class="text-gray-600">ID: {error.cardId}</div>
+                    {/if}
+                    {#if error.line}
+                      <div class="text-gray-500">Line: {error.line}</div>
+                    {/if}
+                    <div class="text-red-600 mt-1">{error.message}</div>
+                    <div class="text-gray-400 text-xs mt-1">Type: {error.type}</div>
+                  </div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <div class="flex justify-end mt-4">
         <button
           onclick={closeResultModal}
           class="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors font-medium"

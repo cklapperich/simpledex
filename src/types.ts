@@ -35,4 +35,14 @@ export interface ImportResult {
   imported: number;
   skipped: number;
   errors: string[];
+  detailedErrors?: ImportError[];
+}
+
+// Detailed error information for imports
+export interface ImportError {
+  line?: number;
+  cardId?: string;
+  cardName?: string;
+  message: string;
+  type: 'parsing' | 'validation' | 'quantity';
 }

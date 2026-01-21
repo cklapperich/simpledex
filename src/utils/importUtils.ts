@@ -1,4 +1,4 @@
-import type { Collection, Card, ImportResult } from '../types';
+import type { Collection, Card, ImportResult, ImportError } from '../types';
 
 /**
  * Parses a CSV field, handling quoted values with commas and escaped quotes
@@ -55,7 +55,11 @@ function parseCSVRow(row: string): string[] {
  * Parses CSV content and returns a Collection object
  * Returns ImportResult with errors if parsing fails
  */
-export function parseCSV(csvContent: string): { collection?: Collection; result?: ImportResult } {
+export function parseCSV(csvContent: string): {
+  collection?: Collection;
+  cardNames?: Map<string, string>;
+  result?: ImportResult;
+} {
   const lines = csvContent.split('\n').filter(line => line.trim());
 
   if (lines.length === 0) {
@@ -87,24 +91,43 @@ export function parseCSV(csvContent: string): { collection?: Collection; result?
 
   // Parse data rows
   const collection: Collection = {};
+  const cardNames = new Map<string, string>();
   const errors: string[] = [];
+  const detailedErrors: ImportError[] = [];
   let skipped = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const row = parseCSVRow(lines[i]);
 
     if (row.length !== 5) {
-      errors.push(`Line ${i + 1}: Invalid number of fields (expected 5, got ${row.length})`);
+      const errorMsg = `Line ${i + 1}: Invalid number of fields (expected 5, got ${row.length})`;
+      errors.push(errorMsg);
+      detailedErrors.push({
+        line: i + 1,
+        message: errorMsg,
+        type: 'parsing'
+      });
       skipped++;
       continue;
     }
 
-    const [cardId, , , , quantityStr] = row;
+    const [cardId, cardName, , , quantityStr] = row;
+
+    // Store card name for later use
+    cardNames.set(cardId, cardName);
 
     // Validate quantity
     const quantity = parseInt(quantityStr);
     if (isNaN(quantity) || quantity < 1 || quantity > 99) {
-      errors.push(`Line ${i + 1}: Invalid quantity "${quantityStr}" (must be 1-99)`);
+      const errorMsg = `Invalid quantity "${quantityStr}" (must be 1-99)`;
+      errors.push(`Line ${i + 1}: ${errorMsg}`);
+      detailedErrors.push({
+        line: i + 1,
+        cardId,
+        cardName,
+        message: errorMsg,
+        type: 'quantity'
+      });
       skipped++;
       continue;
     }
@@ -121,12 +144,13 @@ export function parseCSV(csvContent: string): { collection?: Collection; result?
         success: false,
         imported: 0,
         skipped,
-        errors: errors.length > 0 ? errors : ['No valid cards found in CSV']
+        errors: errors.length > 0 ? errors : ['No valid cards found in CSV'],
+        detailedErrors
       }
     };
   }
 
-  return { collection };
+  return { collection, cardNames };
 }
 
 /**
@@ -135,16 +159,25 @@ export function parseCSV(csvContent: string): { collection?: Collection; result?
  */
 export function validateImport(
   collection: Collection,
-  cardMap: Map<string, Card>
+  cardMap: Map<string, Card>,
+  cardNames?: Map<string, string>
 ): ImportResult {
   const validCollection: Collection = {};
   const invalidIds: string[] = [];
+  const detailedErrors: ImportError[] = [];
 
   for (const [cardId, quantity] of Object.entries(collection)) {
     if (cardMap.has(cardId)) {
       validCollection[cardId] = quantity;
     } else {
       invalidIds.push(cardId);
+      const cardName = cardNames?.get(cardId);
+      detailedErrors.push({
+        cardId,
+        cardName,
+        message: `Card not found in database`,
+        type: 'validation'
+      });
     }
   }
 
@@ -153,13 +186,19 @@ export function validateImport(
   const errors: string[] = [];
 
   if (skipped > 0) {
-    errors.push(`Skipped ${skipped} card(s) with invalid IDs: ${invalidIds.slice(0, 5).join(', ')}${invalidIds.length > 5 ? '...' : ''}`);
+    // Show card names if available, otherwise show IDs
+    const displayList = invalidIds.slice(0, 5).map(id => {
+      const name = cardNames?.get(id);
+      return name ? `${name} (${id})` : id;
+    });
+    errors.push(`Skipped ${skipped} card(s) with invalid IDs: ${displayList.join(', ')}${invalidIds.length > 5 ? '...' : ''}`);
   }
 
   return {
     success: imported > 0,
     imported,
     skipped,
-    errors
+    errors,
+    detailedErrors: detailedErrors.length > 0 ? detailedErrors : undefined
   };
 }
