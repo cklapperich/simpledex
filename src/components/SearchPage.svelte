@@ -10,9 +10,11 @@
   import WishlistExportButton from './WishlistExportButton.svelte';
   import WishlistImportButton from './WishlistImportButton.svelte';
   import ModeToggle from './ModeToggle.svelte';
+  import LanguageSelector from './LanguageSelector.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
-  import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
+  import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
+  import { selectedLanguage } from '../stores/language';
   import { collection, totalCards } from '../stores/collection';
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { MODERN_SERIES } from '../constants';
@@ -47,7 +49,7 @@
       for (const cardId in sourceData) {
         // For collection: check if quantity > 0, for wishlist: check if true
         if (mode === 'collection' ? sourceData[cardId] > 0 : sourceData[cardId]) {
-          const card = $cardMap.get(cardId);
+          const card = $filteredCardMap.get(cardId);
           if (card) {
             cards.push(card);
           }
@@ -59,10 +61,11 @@
         const query = searchQuery.trim();
         const queryLower = normalizeSetName(query);
 
-        // Filter by set name or pokemon name
+        // Filter by set name or pokemon name (always search in English)
         cards = cards.filter(card => {
+          const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || '';
           return (
-            card.name.toLowerCase().includes(queryLower) ||
+            cardName.toLowerCase().includes(queryLower) ||
             card.set.toLowerCase().includes(queryLower) ||
             card.setNumber.toLowerCase().includes(queryLower)
           );
@@ -71,14 +74,15 @@
     } else {
       // Search mode: regular search behavior
       if (!searchQuery.trim()) {
-        // No search - show only first 50 cards
-        cards = $allCards.slice(0, 50);
+        // No search - show Base Set by default
+        const baseSet = $filteredSetMap.get('base set');
+        cards = baseSet ? [...baseSet] : $filteredCards.slice(0, 50);
       } else {
         const query = searchQuery.trim();
         const queryLower = normalizeSetName(query);
 
         // Check if query matches a set name exactly (case-insensitive) using pre-built index
-        const setCards = $setMap.get(queryLower);
+        const setCards = $filteredSetMap.get(queryLower);
         if (setCards) {
           cards = [...setCards];
         } else {
@@ -92,7 +96,7 @@
             for (const cardId of fieldResult.result) {
               if (!cardSet.has(cardId)) {
                 cardSet.add(cardId);
-                const card = $cardMap.get(cardId);
+                const card = $filteredCardMap.get(cardId);
                 if (card) {
                   cards.push(card);
                 }
@@ -143,18 +147,26 @@
 
   $effect(() => {
     // Build FlexSearch index after cards are loaded
-    if (!$cardsLoading && $allCards.length > 0 && !indexReady) {
+    // Always index English names for consistent search, but display in selected language
+    if (!$cardsLoading && $filteredCards.length > 0) {
+      console.log(`Building search index for ${$filteredCards.length} cards (indexing English names)`);
+
       searchIndex = new Document({
         document: {
           id: 'id',
-          index: ['name']  // Only index name field
+          index: ['name']  // Always index English name for search
         },
         tokenize: 'forward'
       });
 
-      // Add all cards to index
-      for (const card of $allCards) {
-        searchIndex.add(card);
+      // Add all filtered cards to index with English names for search consistency
+      for (const card of $filteredCards) {
+        // Always use English name for search indexing (fallback to first available language)
+        const searchableCard = {
+          id: card.id,
+          name: card.names['en'] || card.names[Object.keys(card.names)[0]] || ''
+        };
+        searchIndex.add(searchableCard);
       }
 
       indexReady = true;
@@ -164,9 +176,12 @@
 
 <div class="min-h-screen bg-white">
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-    <!-- Mode Toggle (always visible) -->
+    <!-- Mode Toggle and Language Selector (always visible) -->
     <div class="mb-4">
-      <ModeToggle bind:mode />
+      <div class="flex items-center gap-3 flex-wrap">
+        <ModeToggle bind:mode />
+        <LanguageSelector />
+      </div>
     </div>
 
     {#if collectionOnly}

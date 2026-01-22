@@ -20,6 +20,8 @@ dist-ssr
 
 # Source data (only needed for building cards.json locally)
 pokemon-tcg-data/
+tcgdex-data/
+cards-database-*/
 *.zip
 
 # Sample and reference files

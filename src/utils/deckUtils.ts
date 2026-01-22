@@ -18,7 +18,7 @@ export function exportToPTCGO(deck: Deck, cards: Map<string, Card>): string {
     }
 
     const ptcgoCode = card.ptcgoCode || card.set;
-    const line = `* ${quantity} ${card.name} ${ptcgoCode} ${card.number}`;
+    const line = `* ${quantity} ${(card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown')} ${ptcgoCode} ${card.number}`;
     lines.push(line);
   }
 
@@ -38,7 +38,7 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
   const cardsByNameCodeNumber = new Map<string, Card>();
   for (const card of cards.values()) {
     const ptcgoCode = card.ptcgoCode || card.set;
-    const key = `${card.name.toLowerCase()}|${ptcgoCode.toLowerCase()}|${card.number}`;
+    const key = `${(card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown').toLowerCase()}|${ptcgoCode.toLowerCase()}|${card.number}`;
     cardsByNameCodeNumber.set(key, card);
   }
 
@@ -100,7 +100,7 @@ export function validateDeck(deck: Deck, cards: Map<string, Card>): DeckValidati
     const isBasicEnergy = card.supertype === 'Energy' && card.subtypes?.includes('Basic');
 
     if (!isBasicEnergy && quantity > 4) {
-      warnings.push(`${card.name}: ${quantity} copies (max 4 allowed)`);
+      warnings.push(`${(card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown')}: ${quantity} copies (max 4 allowed)`);
     }
   }
 
@@ -139,7 +139,9 @@ export function sortDeckCards(deckCards: Record<string, number>, cards: Map<stri
       return orderA - orderB;
     }
 
-    return a.card.name.localeCompare(b.card.name);
+    const nameA = a.card.names['en'] || a.card.names[Object.keys(a.card.names)[0]] || 'Unknown';
+    const nameB = b.card.names['en'] || b.card.names[Object.keys(b.card.names)[0]] || 'Unknown';
+    return nameA.localeCompare(nameB);
   });
 
   return cardsWithData;

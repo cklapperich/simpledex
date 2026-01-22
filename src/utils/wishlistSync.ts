@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
 import type { Wishlist } from '../types'
-import { DEFAULT_CARD_VARIATION } from '../constants'
+import { DEFAULT_CARD_VARIATION, DEFAULT_LANGUAGE } from '../constants'
+import { selectedLanguage } from '../stores/language'
+import { get } from 'svelte/store'
 
 interface SyncResult {
   success: boolean
@@ -8,12 +10,15 @@ interface SyncResult {
 }
 
 export async function loadFromSupabase(userId: string): Promise<Record<string, boolean>> {
+  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+
   try {
     const { data, error } = await supabase
       .from('wishlists')
       .select('card_id')
       .eq('user_id', userId)
       .eq('variation', DEFAULT_CARD_VARIATION)
+      .eq('language', currentLanguage)
 
     if (error) {
       console.error('Error loading wishlist from Supabase:', error)
@@ -38,6 +43,8 @@ export async function saveToSupabase(
   userId: string,
   cardId: string
 ): Promise<SyncResult> {
+  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+
   try {
     const { error } = await supabase
       .from('wishlists')
@@ -46,8 +53,9 @@ export async function saveToSupabase(
           user_id: userId,
           card_id: cardId,
           variation: DEFAULT_CARD_VARIATION,
+          language: currentLanguage,
         },
-        { onConflict: 'user_id,card_id,variation' }
+        { onConflict: 'user_id,card_id,variation,language' }
       )
 
     if (error) {
@@ -64,6 +72,8 @@ export async function saveToSupabase(
 }
 
 export async function deleteFromSupabase(userId: string, cardId: string): Promise<SyncResult> {
+  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+
   try {
     const { error } = await supabase
       .from('wishlists')
@@ -71,6 +81,7 @@ export async function deleteFromSupabase(userId: string, cardId: string): Promis
       .eq('user_id', userId)
       .eq('card_id', cardId)
       .eq('variation', DEFAULT_CARD_VARIATION)
+      .eq('language', currentLanguage)
 
     if (error) {
       console.error('Error deleting from Supabase wishlist:', error)
@@ -89,6 +100,8 @@ export async function mergeWishlists(
   userId: string,
   localWishlist: Wishlist
 ): Promise<SyncResult> {
+  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+
   try {
     // Load existing Supabase wishlist
     const supabaseWishlist = await loadFromSupabase(userId)
@@ -101,12 +114,13 @@ export async function mergeWishlists(
       user_id: userId,
       card_id: cardId,
       variation: DEFAULT_CARD_VARIATION,
+      language: currentLanguage,
     }))
 
     if (upsertData.length > 0) {
       const { error } = await supabase
         .from('wishlists')
-        .upsert(upsertData, { onConflict: 'user_id,card_id,variation' })
+        .upsert(upsertData, { onConflict: 'user_id,card_id,variation,language' })
 
       if (error) {
         console.error('Error merging wishlists:', error)
@@ -126,6 +140,8 @@ export async function syncFullWishlist(
   userId: string,
   wishlist: Wishlist
 ): Promise<SyncResult> {
+  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+
   try {
     // Delete all existing records for this user
     const { error: deleteError } = await supabase
@@ -133,6 +149,7 @@ export async function syncFullWishlist(
       .delete()
       .eq('user_id', userId)
       .eq('variation', DEFAULT_CARD_VARIATION)
+      .eq('language', currentLanguage)
 
     if (deleteError) {
       console.error('Error deleting existing wishlist:', deleteError)
@@ -144,6 +161,7 @@ export async function syncFullWishlist(
       user_id: userId,
       card_id: cardId,
       variation: DEFAULT_CARD_VARIATION,
+      language: currentLanguage,
     }))
 
     if (upsertData.length > 0) {

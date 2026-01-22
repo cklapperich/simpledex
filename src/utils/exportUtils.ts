@@ -52,7 +52,8 @@ function generatePTCGOFormat(
 ): string {
   const setId = card.id.split('-')[0];
   const ptcgoCode = ptcgoCodeMap.get(setId) || card.ptcgoCode || 'UNKNOWN';
-  return `${quantity} ${card.name} ${ptcgoCode} ${card.number}`;
+  const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
+  return `${quantity} ${cardName} ${ptcgoCode} ${card.number}`;
 }
 
 /**
@@ -76,9 +77,10 @@ export function generateCSV(
   // Add data rows
   for (const card of enrichedCards) {
     const ptcgoFormat = generatePTCGOFormat(card, card.quantity, ptcgoCodeMap);
+    const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
     const row = [
       escapeCSVField(card.id),
-      escapeCSVField(card.name),
+      escapeCSVField(cardName),
       escapeCSVField(card.set),
       escapeCSVField(card.number),
       escapeCSVField(card.quantity),

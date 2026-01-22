@@ -3,6 +3,7 @@ import type { Wishlist, WishlistResult } from '../types';
 import { user } from './auth';
 import { loadFromSupabase, saveToSupabase, deleteFromSupabase, mergeWishlists, syncFullWishlist } from '../utils/wishlistSync';
 import { STORAGE_KEYS } from '../constants';
+import { selectedLanguage } from './language';
 
 // Module-level state for tracking current user and sync status
 let currentUserId: string | null = null;
@@ -100,6 +101,22 @@ function createWishlistStore() {
     } else if (!newUserId && currentUserId) {
       // User just logged out
       handleLogout();
+    }
+  });
+
+  // Subscribe to language changes - reload wishlist when language changes
+  const unsubscribeLanguage = selectedLanguage.subscribe(async (newLanguage) => {
+    if (currentUserId && !isSyncing) {
+      // Language changed while logged in - reload wishlist for new language
+      isSyncing = true;
+      try {
+        const supabaseWishlist = await loadFromSupabase(currentUserId);
+        set(supabaseWishlist);
+      } catch (error) {
+        console.error('Error reloading wishlist for new language:', error);
+      } finally {
+        isSyncing = false;
+      }
     }
   });
 

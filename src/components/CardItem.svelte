@@ -2,9 +2,11 @@
   import type { Card } from '../types';
   import { collection } from '../stores/collection';
   import { wishlist } from '../stores/wishlist';
+  import { selectedLanguage } from '../stores/language';
   import { getContext } from 'svelte';
   import { toast } from 'svelte-sonner';
   import { Star } from 'lucide-svelte';
+  import { getCardImageUrl } from '../utils/cardImage';
 
   let { card }: { card: Card } = $props();
 
@@ -17,18 +19,24 @@
   const quantity = $derived($collection[card.id] || 0);
   const isOnWishlist = $derived($wishlist[card.id] === true);
 
+  // Get language-specific image URL
+  const imageUrl = $derived(getCardImageUrl(card, $selectedLanguage));
+
+  // Get localized card name (fallback to English)
+  const cardName = $derived(card.names[$selectedLanguage] || card.names['en'] || 'Unknown');
+
   function handleClick() {
     if (mode === 'wishlist') {
       // Toggle wishlist
       const result = wishlist.toggle(card.id);
       if (result.success && result.addedNew) {
         toast.success('Added to wishlist', {
-          description: card.name,
+          description: cardName,
           duration: 2000
         });
       } else if (result.success && result.removed) {
         toast.info('Removed from wishlist', {
-          description: card.name,
+          description: cardName,
           duration: 2000
         });
       }
@@ -39,7 +47,7 @@
         console.warn('Max quantity reached');
       } else if (result.addedNew) {
         toast.success('Added to collection', {
-          description: card.name,
+          description: cardName,
           duration: 2000
         });
       }
@@ -58,6 +66,19 @@
     e.stopPropagation();
     collection.decrement(card.id);
   }
+
+  let imageError = $state(false);
+
+  function handleImageError() {
+    imageError = true;
+  }
+
+  // Reset imageError when imageUrl changes (e.g., language switch)
+  $effect(() => {
+    // Access imageUrl to track it as a dependency
+    imageUrl;
+    imageError = false;
+  });
 </script>
 
 <div
@@ -69,12 +90,23 @@
 >
   <!-- Card Image Container -->
   <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
-    <img
-      src={card.image}
-      alt={card.name}
-      loading="lazy"
-      class="w-full h-full object-cover"
-    />
+    {#if !imageError}
+      <img
+        src={imageUrl}
+        alt={cardName}
+        loading="lazy"
+        class="w-full h-full object-cover"
+        onerror={handleImageError}
+      />
+    {:else}
+      <div class="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-gray-100 to-gray-200">
+        <div class="text-center">
+          <div class="text-sm font-semibold text-gray-700 mb-2">{cardName}</div>
+          <div class="text-xs text-gray-500">{card.set}</div>
+          <div class="text-xs text-gray-400 mt-1">#{card.number}</div>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <!-- Quantity Controls and Wishlist Indicator -->

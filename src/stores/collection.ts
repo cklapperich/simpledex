@@ -3,6 +3,7 @@ import type { Collection, CollectionResult } from '../types';
 import { user } from './auth';
 import { loadFromSupabase, saveToSupabase, deleteFromSupabase, mergeCollections, syncFullCollection } from '../utils/collectionSync';
 import { STORAGE_KEYS, MAX_CARD_QUANTITY } from '../constants';
+import { selectedLanguage } from './language';
 
 // Module-level state for tracking current user and sync status
 let currentUserId: string | null = null;
@@ -100,6 +101,22 @@ function createCollectionStore() {
     } else if (!newUserId && currentUserId) {
       // User just logged out
       handleLogout();
+    }
+  });
+
+  // Subscribe to language changes - reload collection when language changes
+  const unsubscribeLanguage = selectedLanguage.subscribe(async (newLanguage) => {
+    if (currentUserId && !isSyncing) {
+      // Language changed while logged in - reload collection for new language
+      isSyncing = true;
+      try {
+        const supabaseCollection = await loadFromSupabase(currentUserId);
+        set(supabaseCollection);
+      } catch (error) {
+        console.error('Error reloading collection for new language:', error);
+      } finally {
+        isSyncing = false;
+      }
     }
   });
 
