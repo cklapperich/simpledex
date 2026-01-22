@@ -6,6 +6,7 @@
   import SearchBar from './SearchBar.svelte';
   import CardItem from './CardItem.svelte';
   import FilterColumn from './FilterColumn.svelte';
+  import FilterModal from './FilterModal.svelte';
   import DeckCardList from './DeckCardList.svelte';
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection } from '../stores/collection';
@@ -24,9 +25,12 @@
   let tempName = $state('');
   let importText = $state('');
   let showImportModal = $state(false);
+  let showFilterModal = $state(false);
+  let mobileView = $state<'browse' | 'deck'>('browse');
 
   const currentDeck = $derived($activeDeckId ? $decks[$activeDeckId] : null);
   const validation = $derived(currentDeck ? validateDeck(currentDeck, $cardMap) : { isValid: true, cardCount: 0, warnings: [] });
+  const totalDeckCards = $derived(currentDeck ? Object.values(currentDeck.cards).reduce((sum, qty) => sum + qty, 0) : 0);
 
   // Filter collection cards for display
   const displayedCards = $derived.by(() => {
@@ -160,6 +164,14 @@
     activeView.set('decks');
   }
 
+  function showDeckView() {
+    mobileView = 'deck';
+  }
+
+  function showBrowseView() {
+    mobileView = 'browse';
+  }
+
   onMount(async () => {
     try {
       const indexResponse = await fetch('/search-index.json');
@@ -214,8 +226,8 @@
 {:else}
   <div class="flex h-screen">
     <!-- Left Side: Card Browser -->
-    <div class="flex-1 overflow-y-auto bg-white">
-      <div class="max-w-6xl mx-auto px-6 py-4">
+    <div class="w-full lg:flex-1 overflow-y-auto bg-white pb-24 lg:pb-4" class:hidden={mobileView === 'deck'}>
+      <div class="max-w-6xl mx-auto px-4 md:px-6 py-4">
         <!-- Header -->
         <div class="mb-4">
           <button
@@ -230,7 +242,7 @@
               <input
                 type="text"
                 bind:value={tempName}
-                class="text-3xl font-bold border-b-2 border-blue-600 focus:outline-none"
+                class="text-xl md:text-2xl lg:text-3xl font-bold border-b-2 border-blue-600 focus:outline-none"
                 onkeydown={(e) => e.key === 'Enter' && saveName()}
               />
               <button
@@ -250,7 +262,7 @@
             <button
               type="button"
               onclick={startEditingName}
-              class="text-3xl font-bold text-gray-900 hover:text-blue-600 text-left"
+              class="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 hover:text-blue-600 text-left"
             >
               {currentDeck.name}
             </button>
@@ -274,10 +286,25 @@
           </div>
         </div>
 
-        <!-- Filter Column -->
-        <div class="mb-2">
+        <!-- Filters -->
+        <!-- Mobile: Filter button -->
+        <div class="lg:hidden mb-2">
+          <button
+            onclick={() => showFilterModal = true}
+            class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg flex items-center justify-between text-gray-700 font-medium"
+          >
+            <span>Filters</span>
+            {#if activeFilters.size > 0}
+              <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{activeFilters.size}</span>
+            {/if}
+          </button>
+        </div>
+
+        <!-- Desktop: Filter Column -->
+        <div class="hidden lg:block mb-2">
           <FilterColumn activeFilters={activeFilters} onToggle={handleFilterToggle} />
         </div>
+
         <div class="border-t border-gray-300 mb-4"></div>
 
         <!-- Cards Grid -->
@@ -312,11 +339,38 @@
           </div>
         {/if}
       </div>
+
+      <!-- Floating "View Deck" Button (Mobile Only) -->
+      <button
+        onclick={showDeckView}
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 lg:hidden bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 z-40 transition-all"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+        </svg>
+        <span class="font-medium">View Deck ({totalDeckCards})</span>
+        {#if !validation.isValid}
+          <svg class="w-5 h-5 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+        {/if}
+      </button>
     </div>
 
     <!-- Right Side: Deck List -->
-    <div class="w-96 bg-gray-50 border-l border-gray-300 overflow-y-auto">
-      <div class="p-4">
+    <div class="w-full lg:w-96 bg-gray-50 lg:border-l border-gray-300 overflow-y-auto" class:hidden={mobileView === 'browse'}>
+      <!-- Back to Cards Button (Mobile Only) -->
+      <button
+        onclick={showBrowseView}
+        class="lg:hidden w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 flex items-center gap-2 text-gray-700 font-medium border-b border-gray-300"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Cards
+      </button>
+
+      <div class="p-4 lg:p-6">
         <!-- Deck Stats -->
         <div class="mb-4">
           <div class="text-2xl font-bold text-gray-900">{validation.cardCount} / 60</div>
@@ -356,6 +410,15 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Filter Modal (Mobile) -->
+{#if showFilterModal}
+  <FilterModal
+    activeFilters={activeFilters}
+    onToggle={handleFilterToggle}
+    onClose={() => showFilterModal = false}
+  />
 {/if}
 
 <!-- Import Modal -->

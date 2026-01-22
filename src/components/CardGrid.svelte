@@ -17,7 +17,7 @@
     <p class="text-sm text-gray-600">Try searching by name, set, or card number</p>
   </div>
 {:else}
-  <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
+  <div class="grid grid-cols-2 landscape:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
     {#each cards as card (card.id)}
       <CardItem {card} />
     {/each}

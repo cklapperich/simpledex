@@ -32,7 +32,6 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 - virtual scrolling for card lists
 - option for list-form for collections and decks that dont show images
 - make the google login a modal/popup
-- figure out why initial page load is so slow
 - better mobile UI, sidebar moves to top, cards autosize to fit 2 cards wide in vertical mode. Make UI elements flow/stack automatically
     - when tilted horizontally on mobile, sidebar goes back to side.
 - 'share your collection' feature

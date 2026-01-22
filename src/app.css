@@ -39,3 +39,15 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Safe area for notched devices (iPhone X+, etc.) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Prevent iOS auto-zoom on input focus */
+input, textarea, select {
+  font-size: 16px;
+}

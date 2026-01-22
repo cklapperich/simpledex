@@ -1,5 +1,6 @@
 <script lang="ts">
   import Sidebar from './components/Sidebar.svelte';
+  import BottomNav from './components/BottomNav.svelte';
   import CollectionPage from './components/CollectionPage.svelte';
   import SearchPage from './components/SearchPage.svelte';
   import About from './components/About.svelte';
@@ -11,7 +12,7 @@
 
 <div class="flex h-screen">
   <Sidebar />
-  <main class="flex-1 overflow-y-auto">
+  <main class="flex-1 overflow-y-auto pb-16 lg:pb-0">
     <div class="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-3">
       <SyncIndicator />
     </div>
@@ -27,4 +28,5 @@
       <SearchPage />
     {/if}
   </main>
+  <BottomNav />
 </div>
