@@ -23,7 +23,7 @@
     bind:value={inputValue}
     onkeydown={handleKeyDown}
     type="text"
-    placeholder="Search by name, set, or number... (press Enter)"
+    placeholder="Search by name or set..."
     aria-label="Search cards"
     class="w-full px-6 py-4 text-lg rounded-xl border-2 border-gray-200
            focus:border-teal-600 focus:ring-2 focus:ring-teal-600 focus:outline-none
