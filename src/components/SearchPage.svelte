@@ -33,10 +33,8 @@
   let showFilterModal = $state(false);
   let mode = $state<'collection' | 'wishlist'>('collection');
 
-  // Set context so CardItem can access mode (only in collectionOnly view)
-  if (collectionOnly) {
-    setContext('mode', mode);
-  }
+  // Set context so CardItem can access mode - pass getter function to make it reactive
+  setContext('mode', () => mode);
 
   // Display cards: first 50 if no search, all matching if searching
   const displayedCards = $derived.by(() => {
@@ -166,14 +164,14 @@
 
 <div class="min-h-screen bg-white">
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
+    <!-- Mode Toggle (always visible) -->
+    <div class="mb-4">
+      <ModeToggle bind:mode />
+    </div>
+
     {#if collectionOnly}
       <!-- Collection/Wishlist Header -->
-      <div class="mb-4">
-        <!-- Mode Toggle -->
-        <div class="mb-4">
-          <ModeToggle bind:mode />
-        </div>
-
+      <div class="mb-2">
         <!-- Header with title and buttons -->
         <div class="flex items-start justify-between">
           <div>

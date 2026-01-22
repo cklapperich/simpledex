@@ -4,11 +4,13 @@
   import { wishlist } from '../stores/wishlist';
   import { getContext } from 'svelte';
   import { toast } from 'svelte-sonner';
+  import { Star } from 'lucide-svelte';
 
   let { card }: { card: Card } = $props();
 
-  // Get mode from context (defaults to 'collection' if not in collectionOnly view)
-  const mode = getContext<'collection' | 'wishlist'>('mode') || 'collection';
+  // Get mode from context (defaults to 'collection' if not provided)
+  const modeContext = getContext<(() => 'collection' | 'wishlist') | undefined>('mode');
+  const mode = $derived(modeContext ? modeContext() : 'collection');
 
   // Reactive quantity check using store subscription
   const hasCard = $derived($collection[card.id] > 0);
@@ -77,42 +79,20 @@
 
   <!-- Quantity Controls and Wishlist Indicator -->
   {#if mode === 'wishlist'}
-    <!-- Wishlist mode: Show collection controls dimmed (40% opacity) -->
+    <!-- Wishlist mode: Show collection quantity only (no buttons) -->
     {#if hasCard}
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-        <div class="flex items-center gap-3 animate-scale-in">
-          <button
-            type="button"
-            class="w-10 h-10 rounded-full bg-red-500 text-white font-bold text-xl
-                   flex items-center justify-center shadow-xl"
-            aria-label="Decrease quantity"
-            disabled
-          >
-            −
-          </button>
-          <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-            {quantity}
-          </span>
-          <button
-            type="button"
-            class="w-10 h-10 rounded-full bg-green-500 text-white font-bold text-xl
-                   flex items-center justify-center shadow-xl"
-            aria-label="Increase quantity"
-            disabled
-          >
-            +
-          </button>
-        </div>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          {quantity}
+        </span>
       </div>
     {/if}
 
     <!-- Wishlist indicator (star badge - 48x48px) -->
     {#if isOnWishlist}
       <div class="absolute top-2 right-2 pointer-events-none">
-        <div class="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center shadow-xl">
-          <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          </svg>
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 flex items-center justify-center shadow-xl ring-2 ring-amber-600">
+          <Star class="w-7 h-7 text-amber-900 fill-amber-900" strokeWidth={2.5} />
         </div>
       </div>
     {/if}

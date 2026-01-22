@@ -7,6 +7,8 @@ cache this somehow (if its a recent search or the users collection hasnt changed
 
 then when they add cards to collection and clickon collection, we could re-query the entire collection OR do an incremental query and merge the data (maybe too complicated)
 
+Images: same thing, grab low quality images, cache locally in browser. Need a caching strategy, discuss/brainstorm options on how best to do this
+
 supabase only stores card id as it does now and language. need to update the migration .sql file to include language.
 
 remove build-cards.ts

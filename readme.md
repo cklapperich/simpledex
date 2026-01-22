@@ -21,16 +21,14 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 **girlfriend wants me to add**
 
 - pokenots
-- wishlist
-- toast notification 'added to collection'
 - japanese cards
 - variations support
 - right click OR click and hold, to show full size art + other card info, where to buy etc, like other apps do. click+release/tap will just add to collection
-- some cards wont appear, show a pokemon cardback instead
-- missing: SVP 207 Steven's Beldum
+- add more spacing between the search bar and the cards in search mode
+- switch to this: https://tcgdex.dev/sdks/typescript instead of the prebundled json files.
 
 **Eventually**
-- switch to this: https://tcgdex.dev/sdks/typescript instead of the prebundled json files.
+
 - limitless tcg-like searches ie -has:rule_box
 - checkboxes to filter for GLC, expanded, and other formats
 - card variant tracking (reverse holofoil, holofoil, etc)

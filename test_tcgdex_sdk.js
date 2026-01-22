@@ -82,3 +82,36 @@ console.log(set);
   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol"
 }
 */
+
+/*
+from tcgdexsdk.enums import Quality, Extension
+
+# Get a card
+card = await sdk.card.get("swsh3-136")
+
+# Get image URL with quality and format
+image_url = card.get_image_url(quality="high", extension="png")
+# Or using enums
+image_url = card.get_image_url(Quality.HIGH, Extension.PNG)
+
+# Download image directly
+image_data = card.get_image(Quality.HIGH, Extension.PNG)
+
+# Sets and series also have image methods
+set_data = await sdk.set.get("swsh3")
+
+logo_url = set_data.get_logo_url(Extension.PNG)
+logo = set_data.get_logo(Extension.PNG)
+
+symbol_url = set_data.get_symbol_url(Extension.WEBP)
+symbol = set_data.get_symbol(Extension.WEBP)
+*/
+
+/* variant types:
+Variants
+Property	Type	Required	Description
+variants.normal	Boolean	✅	Standard non-foil version available
+variants.reverse	Boolean	✅	Reverse holofoil version available
+variants.holo	Boolean	✅	Holofoil version available
+variants.firstEdition	Boolean	✅	First edition printing available
+*/

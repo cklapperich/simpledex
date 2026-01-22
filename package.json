@@ -28,6 +28,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tcgdex/sdk": "^2.7.1",
     "flexsearch": "^0.8.212",
+    "lucide-svelte": "^0.562.0",
     "svelte-sonner": "^1.0.7",
     "tailwindcss": "^4.1.18"
   }
