@@ -4,6 +4,7 @@
 
 export const STORAGE_KEYS = {
   COLLECTION: 'collection',
+  WISHLIST: 'wishlist',
   DECKS: 'decks',
 } as const;
 

@@ -7,6 +7,7 @@
   import DeckListPage from './components/DeckListPage.svelte';
   import DeckBuilderPage from './components/DeckBuilderPage.svelte';
   import SyncIndicator from './components/SyncIndicator.svelte';
+  import { Toaster } from 'svelte-sonner';
   import { activeView } from './stores/view';
 </script>
 
@@ -29,4 +30,5 @@
     {/if}
   </main>
   <BottomNav />
+  <Toaster position="top-right" />
 </div>

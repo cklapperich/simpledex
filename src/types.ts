@@ -23,6 +23,20 @@ export interface CollectionResult {
   success: boolean;
   quantity: number;
   error?: 'MAX_QUANTITY' | 'ALREADY_ZERO';
+  addedNew?: boolean; // True when adding a card from 0 to 1
+}
+
+// Wishlist storage format: cardId -> boolean (only stores cards that ARE on wishlist)
+// Example: { "sv1-25": true, "base1-4": true }
+export type Wishlist = Record<string, boolean>;
+
+// Operation result for wishlist operations
+export interface WishlistResult {
+  success: boolean;
+  isOnWishlist: boolean;
+  error?: string;
+  addedNew?: boolean;
+  removed?: boolean;
 }
 
 // Enriched card with quantity for exports

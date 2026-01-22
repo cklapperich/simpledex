@@ -26,7 +26,9 @@
     "@supabase/supabase-js": "^2.78.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
+    "@tcgdex/sdk": "^2.7.1",
     "flexsearch": "^0.8.212",
+    "svelte-sonner": "^1.0.7",
     "tailwindcss": "^4.1.18"
   }
 }

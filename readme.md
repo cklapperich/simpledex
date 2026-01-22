@@ -18,18 +18,24 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 
 ## Roadmap
 
+**girlfriend wants me to add**
+
+- pokenots
+- wishlist
+- toast notification 'added to collection'
+- japanese cards
+- variations support
+- right click OR click and hold, to show full size art + other card info, where to buy etc, like other apps do. click+release/tap will just add to collection
+- some cards wont appear, show a pokemon cardback instead
+- missing: SVP 207 Steven's Beldum
+
 **Eventually**
+- switch to this: https://tcgdex.dev/sdks/typescript instead of the prebundled json files.
 - limitless tcg-like searches ie -has:rule_box
 - checkboxes to filter for GLC, expanded, and other formats
 - card variant tracking (reverse holofoil, holofoil, etc)
-- add a loading throbber to the initial page load which can be slow
-- import button
-- Various UI improvements
-- feedback button
-- Export data to google drive
 - folders/collections
-- deckbuilder
-- virtual scrolling for card lists
+- virtual scrolling for card views
 - option for list-form for collections and decks that dont show images
 - make the google login a modal/popup
 - better mobile UI, sidebar moves to top, cards autosize to fit 2 cards wide in vertical mode. Make UI elements flow/stack automatically

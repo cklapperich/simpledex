@@ -118,6 +118,7 @@ function createCollectionStore() {
         }
 
         result.quantity = current + 1;
+        result.addedNew = current === 0; // Track 0->1 transitions
         return { ...collection, [cardId]: current + 1 };
       });
 
