@@ -156,10 +156,10 @@
       <!-- Collection Header -->
       <div class="mb-2 flex items-start justify-between">
         <div>
-          <h1 class="text-4xl font-bold text-gray-900 mb-2">My Collection</h1>
+          <h1 class="text-4xl font-bold text-gray-900 mb-2">Collection</h1>
           <p class="text-gray-600">
             {#if $totalCards > 0}
-              {$totalCards} {$totalCards === 1 ? 'card' : 'cards'} in your collection
+              {$totalCards} {$totalCards === 1 ? 'card' : 'cards'}
             {:else}
               No cards yet
             {/if}
@@ -175,18 +175,6 @@
     <!-- Search Bar -->
     <div class="mb-1">
       <SearchBar onSearch={handleSearch} />
-
-      <!-- Modern Only Filter -->
-      <div class="mt-1">
-        <label class="inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            bind:checked={modernOnly}
-            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <span class="ml-2 text-sm text-gray-700">Modern Only (Black & White onwards)</span>
-        </label>
-      </div>
     </div>
 
     <!-- Loading state -->

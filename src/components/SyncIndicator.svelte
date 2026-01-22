@@ -39,14 +39,19 @@
   {#if $isAuthenticated}
     <div class="flex items-center gap-2">
       <div class="w-2 h-2 rounded-full bg-green-500"></div>
-      <span class="text-gray-700">Signed in as <strong>{getDisplayName()}</strong></span>
+      <span class="text-gray-700">Signed in</span>
     </div>
     <div class="text-gray-500">|</div>
     <button
       onclick={handleSignOut}
-      class="text-blue-600 hover:text-blue-800 underline"
+      class="hover:opacity-70 transition-opacity"
+      title="Sign out"
     >
-      Sign Out
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 38H11C9.89543 38 9 37.1046 9 36V12C9 10.8954 9.89543 10 11 10H20" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+        <path d="M31 30L39 24L31 18" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M39 24H20" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+      </svg>
     </button>
   {:else}
     <button
@@ -57,10 +62,4 @@
       <span class="text-gray-600">Not signed in (local only)</span>
     </button>
   {/if}
-
-  <div class="text-gray-500">|</div>
-
-  <div class="text-gray-700">
-    <strong>{$totalCards}</strong> {$totalCards === 1 ? 'card' : 'cards'}
-  </div>
 </div>
