@@ -82,7 +82,7 @@ function createAuthStore() {
     signOut: async () => {
       update(state => ({ ...state, loading: true, error: null }))
 
-      const { error } = await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
 
       if (error) {
         update(state => ({ ...state, loading: false, error: error.message }))

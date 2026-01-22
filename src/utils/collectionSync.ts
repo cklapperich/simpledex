@@ -42,12 +42,15 @@ export async function saveToSupabase(
   try {
     const { error } = await supabase
       .from('collections')
-      .upsert({
-        user_id: userId,
-        card_id: cardId,
-        variation: DEFAULT_CARD_VARIATION,
-        quantity,
-      })
+      .upsert(
+        {
+          user_id: userId,
+          card_id: cardId,
+          variation: DEFAULT_CARD_VARIATION,
+          quantity,
+        },
+        { onConflict: 'user_id,card_id,variation' }
+      )
 
     if (error) {
       console.error('Error saving to Supabase:', error)
@@ -109,7 +112,9 @@ export async function mergeCollections(
     }))
 
     if (upsertData.length > 0) {
-      const { error } = await supabase.from('collections').upsert(upsertData)
+      const { error } = await supabase
+        .from('collections')
+        .upsert(upsertData, { onConflict: 'user_id,card_id,variation' })
 
       if (error) {
         console.error('Error merging collections:', error)
