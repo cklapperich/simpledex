@@ -61,9 +61,9 @@
     <div class="text-gray-500">|</div>
     <button
       onclick={handleSignIn}
-      class="text-blue-600 hover:text-blue-800 underline leading-tight"
+      class="text-blue-600 hover:text-blue-800 underline"
     >
-      Sign<br/>in
+      Sign in
     </button>
   {/if}
 </div>
