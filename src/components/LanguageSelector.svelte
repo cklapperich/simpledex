@@ -9,14 +9,6 @@
     SUPPORTED_LANGUAGES.find(lang => lang.code === $selectedLanguage) || SUPPORTED_LANGUAGES[0]
   );
 
-  // Group languages by dataset
-  const westernLanguages = $derived(
-    SUPPORTED_LANGUAGES.filter(lang => lang.dataset === 'western')
-  );
-  const asianLanguages = $derived(
-    SUPPORTED_LANGUAGES.filter(lang => lang.dataset === 'asian')
-  );
-
   function selectLanguage(code: string) {
     selectedLanguage.set(code);
     isOpen = false;
@@ -59,38 +51,8 @@
   </button>
 
   {#if isOpen}
-    <div class="absolute top-full mt-1 right-0 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[220px] max-h-[400px] overflow-y-auto">
-      <!-- Western Languages -->
-      <div class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-        Western
-      </div>
-      {#each westernLanguages as lang (lang.code)}
-        <button
-          class="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
-          class:bg-blue-50={lang.code === $selectedLanguage}
-          class:text-blue-600={lang.code === $selectedLanguage}
-          onclick={() => selectLanguage(lang.code)}
-        >
-          <span class="flex items-center gap-2">
-            <span class="text-xl">{lang.flag}</span>
-            <span class="font-medium">{lang.label}</span>
-          </span>
-          {#if lang.code === $selectedLanguage}
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-            </svg>
-          {/if}
-        </button>
-      {/each}
-
-      <!-- Divider -->
-      <div class="my-1 border-t border-gray-200"></div>
-
-      <!-- Asian Languages -->
-      <div class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-        Asian
-      </div>
-      {#each asianLanguages as lang (lang.code)}
+    <div class="absolute top-full mt-1 right-0 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[180px]">
+      {#each SUPPORTED_LANGUAGES as lang (lang.code)}
         <button
           class="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors flex items-center justify-between gap-3"
           class:bg-blue-50={lang.code === $selectedLanguage}

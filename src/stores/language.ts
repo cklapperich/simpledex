@@ -12,38 +12,25 @@ export interface LanguageInfo {
   dataset: Dataset;
 }
 
-// Language groups
-export const WESTERN_LANGUAGES = ['en', 'fr', 'de', 'es', 'it', 'pt', 'pt-br', 'pt-pt', 'nl', 'pl', 'ru'];
-export const ASIAN_LANGUAGES = ['ja', 'ko', 'zh-tw', 'zh-cn', 'id', 'th'];
+// Only include languages with actual card images available on TCGdex CDN
+// EN and FR: Complete image coverage for all sets
+// DE and IT: Images available for modern sets (XY onwards)
+export const WESTERN_LANGUAGES = ['en', 'fr', 'de', 'it'];
 
 // All supported languages with full configuration
 export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
-  // Western languages
   { code: 'en', label: 'English', flag: '🇬🇧', dataset: 'western' },
   { code: 'fr', label: 'Français', flag: '🇫🇷', dataset: 'western' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪', dataset: 'western' },
-  { code: 'es', label: 'Español', flag: '🇪🇸', dataset: 'western' },
-  { code: 'it', label: 'Italiano', flag: '🇮🇹', dataset: 'western' },
-  { code: 'pt', label: 'Português', flag: '🇵🇹', dataset: 'western' },
-  { code: 'pt-br', label: 'Português (Brasil)', flag: '🇧🇷', dataset: 'western' },
-  { code: 'pt-pt', label: 'Português (Portugal)', flag: '🇵🇹', dataset: 'western' },
-  { code: 'nl', label: 'Nederlands', flag: '🇳🇱', dataset: 'western' },
-  { code: 'pl', label: 'Polski', flag: '🇵🇱', dataset: 'western' },
-  { code: 'ru', label: 'Русский', flag: '🇷🇺', dataset: 'western' },
-  // Asian languages
-  { code: 'ja', label: '日本語', flag: '🇯🇵', dataset: 'asian' },
-  { code: 'ko', label: '한국어', flag: '🇰🇷', dataset: 'asian' },
-  { code: 'zh-tw', label: '中文（繁體）', flag: '🇹🇼', dataset: 'asian' },
-  { code: 'zh-cn', label: '中文（简体）', flag: '🇨🇳', dataset: 'asian' },
-  { code: 'id', label: 'Bahasa Indonesia', flag: '🇮🇩', dataset: 'asian' },
-  { code: 'th', label: 'ไทย', flag: '🇹🇭', dataset: 'asian' }
+  { code: 'it', label: 'Italiano', flag: '🇮🇹', dataset: 'western' }
 ];
 
 /**
  * Helper to determine which dataset a language belongs to
+ * Currently only 'western' since we removed asian language support
  */
 export function getDatasetForLanguage(lang: string): Dataset {
-  return ASIAN_LANGUAGES.includes(lang) ? 'asian' : 'western';
+  return 'western';
 }
 
 function createLanguageStore() {
