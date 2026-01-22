@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { Document } from 'flexsearch';
   import type { Card } from '../types';
@@ -131,22 +130,24 @@
     activeFilters = newFilters;
   }
 
-  onMount(() => {
-    // Build FlexSearch index client-side from allCards
-    searchIndex = new Document({
-      document: {
-        id: 'id',
-        index: ['name']  // Only index name field
-      },
-      tokenize: 'forward'
-    });
+  $effect(() => {
+    // Build FlexSearch index after cards are loaded
+    if (!$cardsLoading && $allCards.length > 0 && !indexReady) {
+      searchIndex = new Document({
+        document: {
+          id: 'id',
+          index: ['name']  // Only index name field
+        },
+        tokenize: 'forward'
+      });
 
-    // Add all cards to index (fast - runs after cards are loaded)
-    for (const card of $allCards) {
-      searchIndex.add(card);
+      // Add all cards to index
+      for (const card of $allCards) {
+        searchIndex.add(card);
+      }
+
+      indexReady = true;
     }
-
-    indexReady = true;
   });
 </script>
 

@@ -54,12 +54,16 @@
       </svg>
     </button>
   {:else}
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 rounded-full bg-gray-400"></div>
+      <span class="text-gray-700">Not signed in</span>
+    </div>
+    <div class="text-gray-500">|</div>
     <button
       onclick={handleSignIn}
-      class="flex items-center gap-2 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+      class="text-blue-600 hover:text-blue-800 underline leading-tight"
     >
-      <div class="w-2 h-2 rounded-full bg-gray-400"></div>
-      <span class="text-gray-600">Not signed in (local only)</span>
+      Sign<br/>in
     </button>
   {/if}
 </div>
