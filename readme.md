@@ -29,15 +29,19 @@ This app may add price features eventually but there are 20 apps on the Play Sto
 - Export data to google drive
 - folders/collections
 - deckbuilder
-- card scanner
 - virtual scrolling for card lists
 - option for list-form for collections and decks that dont show images
 - make the google login a modal/popup
 - figure out why initial page load is so slow
+- better mobile UI, sidebar moves to top, cards autosize to fit 2 cards wide in vertical mode. Make UI elements flow/stack automatically
+    - when tilted horizontally on mobile, sidebar goes back to side.
+- 'share your collection' feature
+- if you click on 'signed out' it should signed you in. And the signin/signout should move to the bottom of the sidebar, too easy to click?
 
 **MAYBE**
 - price tracking
 - mobile app
+- card scanner
 - premium paid service for scanning past a free limit/day
 
 ## Thanks

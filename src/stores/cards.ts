@@ -38,22 +38,20 @@ function createCardsStore() {
     set($cards);
   });
 
-  // Derived store for cardMap - O(1) lookups by card ID
+  // Derived store for cardMap - O(1) lookups by card ID (builds in ~200ms)
   const cardMap = derived(allCards, $cards => {
     const map = new Map<string, Card>();
     for (const card of $cards) {
-      // Skip invalid cards
       if (!card || !card.id) continue;
       map.set(card.id, card);
     }
     return map;
   });
 
-  // Derived store for setMap - instant set name lookups
+  // Derived store for setMap - instant set name lookups (builds in ~200ms)
   const setMap = derived(allCards, $cards => {
     const map = new Map<string, Card[]>();
     for (const card of $cards) {
-      // Skip cards with undefined set
       if (!card || !card.set) continue;
 
       const key = card.set.toLowerCase();

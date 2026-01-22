@@ -129,48 +129,22 @@
     activeFilters = newFilters;
   }
 
-  onMount(async () => {
-    try {
-      // Only load search index (cards loaded by store)
-      const indexResponse = await fetch('/search-index.json');
+  onMount(() => {
+    // Build FlexSearch index client-side from allCards
+    searchIndex = new Document({
+      document: {
+        id: 'id',
+        index: ['name']  // Only index name field
+      },
+      tokenize: 'forward'
+    });
 
-      if (!indexResponse.ok) {
-        throw new Error('Failed to load search index');
-      }
-
-      const exportedIndex = await indexResponse.json();
-
-      // Create FlexSearch index and import pre-built data
-      searchIndex = new Document({
-        document: {
-          id: 'id',
-          index: [
-            'name',           // Fuzzy matching for card names
-            'set',            // Fuzzy matching for set names
-            {
-              field: 'number',
-              tokenize: 'strict',  // Exact matching for numbers
-              resolution: 9
-            },
-            {
-              field: 'setNumber',
-              tokenize: 'strict',  // Strict matching for "Set Number" searches
-              resolution: 9
-            }
-          ]
-        },
-        tokenize: 'forward'  // Better partial matching for name/set
-      });
-
-      // Import the pre-built index
-      for (const item of exportedIndex) {
-        searchIndex.import(item.key, item.data);
-      }
-    } catch (error) {
-      console.error('Error loading search index:', error);
-    } finally {
-      indexReady = true;
+    // Add all cards to index (fast - runs after cards are loaded)
+    for (const card of $allCards) {
+      searchIndex.add(card);
     }
+
+    indexReady = true;
   });
 </script>
 

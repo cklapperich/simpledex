@@ -90,47 +90,8 @@ async function buildCards() {
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allCards, null, 2), 'utf-8');
   const sizeInMB = (fs.statSync(OUTPUT_FILE).size / (1024 * 1024)).toFixed(2);
 
-  // Build FlexSearch index with better matching configuration
-  const searchIndex = new Document({
-    document: {
-      id: 'id',
-      index: [
-        'name',           // Fuzzy matching for card names
-        'set',            // Fuzzy matching for set names
-        {
-          field: 'number',
-          tokenize: 'strict',  // Exact matching for numbers
-          resolution: 9
-        },
-        {
-          field: 'setNumber',
-          tokenize: 'strict',  // Strict matching for "Set Number" searches
-          resolution: 9
-        }
-      ]
-    },
-    tokenize: 'forward'  // Better partial matching for name/set
-  });
-
-  for (const card of allCards) {
-    searchIndex.add(card);
-  }
-
-  // Export the index (FlexSearch uses callback-based export)
-  const exportedIndex = await new Promise((resolve, reject) => {
-    const exported: any[] = [];
-    searchIndex.export((key: string, data: any) => {
-      exported.push({ key, data });
-    });
-    // FlexSearch export is synchronous despite using callbacks
-    resolve(exported);
-  });
-
-  fs.writeFileSync(INDEX_FILE, JSON.stringify(exportedIndex), 'utf-8');
-  const indexSizeInMB = (fs.statSync(INDEX_FILE).size / (1024 * 1024)).toFixed(2);
-
   console.log(`Built ${allCards.length} cards (${sizeInMB} MB)`);
-  console.log(`Built search index (${indexSizeInMB} MB)`);
+  console.log('Maps and search index now built client-side (no extra files needed)');
 }
 
 buildCards().catch(error => {
