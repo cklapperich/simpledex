@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:cards && vite build",
+    "build": "vite build",
     "build:cards": "tsx build-multi-language.ts",
+    "build:local": "npm run build:cards && vite build",
     "preview": "vite preview"
   },
   "keywords": [],
