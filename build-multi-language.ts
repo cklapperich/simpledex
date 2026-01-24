@@ -2,21 +2,26 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { glob } from 'glob';
+import { loadPokemonTCGData, convertPokemonTCGCard, type PokemonTCGCard, type PokemonTCGData } from './build-pokemon-tcg-data';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TCGDEX_BASE_DIR = path.join(__dirname, 'cards-database-2.41.1');
+const TCGDEX_BASE_DIR = path.join(__dirname, 'cards-database');
 const WESTERN_DATA_DIR = path.join(TCGDEX_BASE_DIR, 'data');
-const ASIAN_DATA_DIR = path.join(TCGDEX_BASE_DIR, 'data-asia');
 const OUTPUT_DIR = path.join(__dirname, 'public');
 
-// Language definitions
-const WESTERN_LANGUAGES = ['en', 'fr', 'de', 'es', 'it', 'pt', 'pt-br', 'pt-pt', 'nl', 'pl', 'ru'];
-const ASIAN_LANGUAGES = ['ja', 'ko', 'zh-tw', 'zh-cn', 'id', 'th'];
+// Language definitions - English only
+const WESTERN_LANGUAGES = ['en'];
+
+interface CardImage {
+  url: string;
+  source: 'tcgdex' | 'pokemontcg-io';
+  size?: 'small' | 'large' | 'low' | 'high';
+}
 
 interface MultiLangCard {
   id: string;
-  names: Record<string, string>; // Multi-language names
+  names: Record<string, string>; // Card names (English only)
   set: string;
   number: string;
   setNumber?: string;
@@ -50,10 +55,11 @@ interface MultiLangCard {
   retreatCost?: string[];
   seriesId?: string;
   setId?: string;
+  images?: CardImage[];
 }
 
 /**
- * Extract multi-language names from card file content
+ * Extract names from card file content
  */
 function extractNames(fileContent: string, expectedLanguages: string[]): Record<string, string> {
   const names: Record<string, string> = {};
@@ -174,13 +180,96 @@ function extractAbilities(fileContent: string, primaryLang: string): Array<{
 }
 
 /**
+ * Normalize card ID for matching between databases
+ * Handles variations like:
+ * - Dots: sm7.5 vs sm75
+ * - "pt" notation: swsh12.5 vs swsh12pt5
+ * - Leading zeros: sv01 vs sv1
+ */
+function normalizeCardId(id: string): string {
+  // Split into set ID and card number
+  const parts = id.split('-');
+  if (parts.length < 2) return id;
+
+  let setId = parts[0];
+  const cardNumber = parts.slice(1).join('-');
+
+  // Remove dots from set ID
+  setId = setId.replace(/\./g, '');
+
+  // Convert "pt" notation to match (swsh12pt5 -> swsh125)
+  setId = setId.replace(/pt/g, '');
+
+  // Remove leading zeros from numbers in set ID (sv01 -> sv1, swsh03 -> swsh3)
+  // But keep the letters and only remove zeros from the numeric part
+  setId = setId.replace(/([a-z]+)0+(\d+)/g, '$1$2');
+
+  return `${setId}-${cardNumber}`;
+}
+
+/**
+ * Try to find pokemon-tcg-data card with multiple matching strategies
+ */
+function findPokemonTCGCard(
+  tcgdexCardId: string,
+  tcgdexCard: MultiLangCard,
+  pokemonTCGData: PokemonTCGData
+): PokemonTCGCard | undefined {
+  // Strategy 1: Try exact ID match
+  let card = pokemonTCGData.cards.get(tcgdexCardId);
+  if (card) return card;
+
+  // Strategy 2: Try normalized ID (handles dots, leading zeros, pt notation)
+  const normalizedId = normalizeCardId(tcgdexCardId);
+  card = pokemonTCGData.cards.get(normalizedId);
+  if (card) return card;
+
+  // Strategy 3: Try matching by set name + card number (handles completely different set IDs)
+  // Example: lc-99 (tcgdex) vs base6-99 (pokemon-tcg-data) both = "Legendary Collection|99"
+  const setNumberKey = `${tcgdexCard.set}|${tcgdexCard.number}`;
+  card = pokemonTCGData.cardsBySetAndNumber.get(setNumberKey);
+  if (card) return card;
+
+  return undefined;
+}
+
+/**
+ * Build images array for a card
+ * Priority: pokemon-tcg-data (more reliable) first, tcgdex (backup) second
+ */
+function buildImageArray(tcgdexCard: MultiLangCard, ptcgCard?: PokemonTCGCard): CardImage[] {
+  const images: CardImage[] = [];
+
+  // Primary: pokemon-tcg-data (more reliable)
+  if (ptcgCard?.images?.small) {
+    images.push({
+      url: ptcgCard.images.small,
+      source: 'pokemontcg-io',
+      size: 'small'
+    });
+  }
+
+  // Backup: tcgdex (use special protocol for language-specific URLs)
+  if (tcgdexCard.seriesId && tcgdexCard.setId && tcgdexCard.number) {
+    images.push({
+      url: `tcgdex://${tcgdexCard.seriesId}/${tcgdexCard.setId}/${tcgdexCard.number}`,
+      source: 'tcgdex',
+      size: 'low'
+    });
+  }
+
+  return images;
+}
+
+/**
  * Process a directory of card files
  */
 async function processDirectory(
   dataDir: string,
   expectedLanguages: string[],
   primaryLang: string,
-  datasetName: string
+  datasetName: string,
+  pokemonTCGData: PokemonTCGData
 ): Promise<MultiLangCard[]> {
   console.log(`\nProcessing ${datasetName} cards from: ${dataDir}`);
 
@@ -200,8 +289,23 @@ async function processDirectory(
     try {
       const fileName = path.basename(cardFile);
 
-      // Only process files that are card numbers (e.g., "1.ts", "25.ts", "100.ts")
-      if (!/^\d+\.ts$/.test(fileName)) {
+      // Only process files that are card numbers (e.g., "1.ts", "25.ts", "XY01.ts", "BW-P.ts")
+      // Skip index files, files with spaces, and set definition files
+      if (fileName === 'index.ts' || /\s/.test(fileName)) {
+        skippedCards++;
+        continue;
+      }
+
+      // Must end with .ts
+      if (!fileName.endsWith('.ts')) {
+        skippedCards++;
+        continue;
+      }
+
+      // Skip set definition files (they have a matching directory with same base name)
+      const baseFileName = fileName.replace(/\.ts$/, '');
+      const possibleSetDir = path.join(path.dirname(cardFile), baseFileName);
+      if (fs.existsSync(possibleSetDir) && fs.statSync(possibleSetDir).isDirectory()) {
         skippedCards++;
         continue;
       }
@@ -331,6 +435,10 @@ async function processDirectory(
         setId
       };
 
+      // Add images array (try multiple matching strategies)
+      const ptcgCard = findPokemonTCGCard(cardId, card, pokemonTCGData);
+      card.images = buildImageArray(card, ptcgCard);
+
       cards.push(card);
       processedCards++;
 
@@ -347,6 +455,46 @@ async function processDirectory(
   console.log(`  ✅ Processed ${processedCards} cards`);
   console.log(`  ⏭️  Skipped ${skippedCards} non-card files`);
 
+  // Find cards in pokemon-tcg-data but not in tcgdex
+  if (datasetName === 'Western' && pokemonTCGData.cards.size > 0) {
+    const tcgdexCardIds = new Set(cards.map(c => c.id));
+    const tcgdexNormalizedIds = new Set(cards.map(c => normalizeCardId(c.id)));
+    const tcgdexSetNumbers = new Set(cards.map(c => `${c.set}|${c.number}`));
+    const missingCards: MultiLangCard[] = [];
+
+    for (const [cardId, ptcgCard] of pokemonTCGData.cards) {
+      // Check three strategies to avoid duplicates:
+      // 1. Exact ID match
+      // 2. Normalized ID match
+      // 3. Set name + number match
+      const normalizedPtcgId = normalizeCardId(cardId);
+
+      // Get set name from sets map (cards don't have set property in pokemon-tcg-data)
+      const setId = cardId.split('-')[0];
+      const ptcgSet = pokemonTCGData.sets.get(setId);
+      const setNumberKey = ptcgSet && ptcgCard.number
+        ? `${ptcgSet.name}|${ptcgCard.number}`
+        : null;
+
+      if (!tcgdexCardIds.has(cardId) &&
+          !tcgdexNormalizedIds.has(normalizedPtcgId) &&
+          (!setNumberKey || !tcgdexSetNumbers.has(setNumberKey))) {
+        if (ptcgSet) {
+          const missingCard = convertPokemonTCGCard(ptcgCard, ptcgSet);
+          missingCard.images = [{
+            url: ptcgCard.images.small,
+            source: 'pokemontcg-io',
+            size: 'small'
+          }];
+          missingCards.push(missingCard);
+        }
+      }
+    }
+
+    console.log(`  ➕ Added ${missingCards.length} cards from pokemon-tcg-data`);
+    return [...cards, ...missingCards];
+  }
+
   return cards;
 }
 
@@ -354,19 +502,23 @@ async function processDirectory(
  * Main build function
  */
 async function buildMultiLanguageData() {
-  console.log('Building multi-language card databases...\n');
+  console.log('Building card database...\n');
 
   // Ensure output directory exists
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
 
-  // Build Western database
+  // Load pokemon-tcg-data
+  const pokemonTCGData = await loadPokemonTCGData();
+
+  // Build Western database (English only)
   const westernCards = await processDirectory(
     WESTERN_DATA_DIR,
     WESTERN_LANGUAGES,
     'en', // Primary language for attack/ability text
-    'Western'
+    'Western',
+    pokemonTCGData
   );
 
   const westernOutputFile = path.join(OUTPUT_DIR, 'cards-western.json');
@@ -375,23 +527,29 @@ async function buildMultiLanguageData() {
   console.log(`\n📦 Western database: ${westernCards.length} cards, ${westernSizeMB} MB`);
   console.log(`   ${westernOutputFile}`);
 
-  // Build Asian database
-  const asianCards = await processDirectory(
-    ASIAN_DATA_DIR,
-    ASIAN_LANGUAGES,
-    'ja', // Primary language for attack/ability text
-    'Asian'
-  );
+  // Image coverage validation report
+  const cardsWithBothSources = westernCards.filter(c =>
+    c.images && c.images.length >= 2
+  ).length;
+  const cardsWithOnlyPTCG = westernCards.filter(c =>
+    c.images && c.images.length === 1 && c.images[0].source === 'pokemontcg-io'
+  ).length;
+  const cardsWithOnlyTCGdex = westernCards.filter(c =>
+    c.images && c.images.length === 1 && c.images[0].source === 'tcgdex'
+  ).length;
+  const cardsWithNoImages = westernCards.filter(c =>
+    !c.images || c.images.length === 0
+  ).length;
 
-  const asianOutputFile = path.join(OUTPUT_DIR, 'cards-asian.json');
-  fs.writeFileSync(asianOutputFile, JSON.stringify(asianCards), 'utf-8');
-  const asianSizeMB = (fs.statSync(asianOutputFile).size / (1024 * 1024)).toFixed(2);
-  console.log(`\n📦 Asian database: ${asianCards.length} cards, ${asianSizeMB} MB`);
-  console.log(`   ${asianOutputFile}`);
+  console.log(`\n📊 Image Coverage (Western):`);
+  console.log(`   Cards with both sources: ${cardsWithBothSources}`);
+  console.log(`   Cards with only pokemon-tcg-data: ${cardsWithOnlyPTCG}`);
+  console.log(`   Cards with only tcgdex: ${cardsWithOnlyTCGdex}`);
+  console.log(`   Cards with no images: ${cardsWithNoImages}`);
 
   console.log('\n✅ Build complete!');
-  console.log(`   Total cards: ${westernCards.length + asianCards.length}`);
-  console.log(`   Total size: ${(parseFloat(westernSizeMB) + parseFloat(asianSizeMB)).toFixed(2)} MB`);
+  console.log(`   Total cards: ${westernCards.length}`);
+  console.log(`   Total size: ${westernSizeMB} MB`);
 }
 
 buildMultiLanguageData().catch(error => {

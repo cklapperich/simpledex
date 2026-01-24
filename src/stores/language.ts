@@ -12,17 +12,12 @@ export interface LanguageInfo {
   dataset: Dataset;
 }
 
-// Only include languages with actual card images available on TCGdex CDN
-// EN and FR: Complete image coverage for all sets
-// DE and IT: Images available for modern sets (XY onwards)
-export const WESTERN_LANGUAGES = ['en', 'fr', 'de', 'it'];
+// Only English is supported
+export const WESTERN_LANGUAGES = ['en'];
 
 // All supported languages with full configuration
 export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
-  { code: 'en', label: 'English', flag: '🇬🇧', dataset: 'western' },
-  { code: 'fr', label: 'Français', flag: '🇫🇷', dataset: 'western' },
-  { code: 'de', label: 'Deutsch', flag: '🇩🇪', dataset: 'western' },
-  { code: 'it', label: 'Italiano', flag: '🇮🇹', dataset: 'western' }
+  { code: 'en', label: 'English', flag: '🇬🇧', dataset: 'western' }
 ];
 
 /**

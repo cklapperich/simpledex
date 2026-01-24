@@ -19,10 +19,12 @@ dist-ssr
 .passwords
 
 # Source data (only needed for building cards.json locally)
-pokemon-tcg-data/
 tcgdex-data/
 cards-database-*/
 *.zip
+
+# Asian cards (no longer built)
+public/cards-asian.json
 
 # Sample and reference files
 sample_search_page/

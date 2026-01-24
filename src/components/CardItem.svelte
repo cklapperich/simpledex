@@ -2,11 +2,10 @@
   import type { Card } from '../types';
   import { collection } from '../stores/collection';
   import { wishlist } from '../stores/wishlist';
-  import { selectedLanguage } from '../stores/language';
   import { getContext } from 'svelte';
   import { toast } from 'svelte-sonner';
   import { Star } from 'lucide-svelte';
-  import { getCardImageUrl } from '../utils/cardImage';
+  import { getAllCardImageUrls } from '../utils/cardImage';
 
   let { card }: { card: Card } = $props();
 
@@ -19,11 +18,15 @@
   const quantity = $derived($collection[card.id] || 0);
   const isOnWishlist = $derived($wishlist[card.id] === true);
 
-  // Get language-specific image URL
-  const imageUrl = $derived(getCardImageUrl(card, $selectedLanguage));
+  // Get all available image URLs (primary + backups)
+  const imageUrls = $derived(getAllCardImageUrls(card, 'en'));
+  let currentImageIndex = $state(0);
 
-  // Get localized card name (fallback to English)
-  const cardName = $derived(card.names[$selectedLanguage] || card.names['en'] || 'Unknown');
+  // Current image URL (tries backup if primary fails)
+  const imageUrl = $derived(imageUrls[currentImageIndex] || '');
+
+  // Get card name
+  const cardName = $derived(card.names['en'] || 'Unknown');
 
   function handleClick() {
     if (mode === 'wishlist') {
@@ -70,13 +73,21 @@
   let imageError = $state(false);
 
   function handleImageError() {
-    imageError = true;
+    // Try next image if available
+    if (currentImageIndex < imageUrls.length - 1) {
+      currentImageIndex++;
+    } else {
+      // No more images to try - show fallback UI
+      imageError = true;
+    }
   }
 
-  // Reset imageError when imageUrl changes (e.g., language switch)
+  // Reset state when card changes
   $effect(() => {
-    // Access imageUrl to track it as a dependency
-    imageUrl;
+    // Track dependencies: card.id and imageUrls
+    card.id;
+    imageUrls;
+    currentImageIndex = 0;
     imageError = false;
   });
 </script>

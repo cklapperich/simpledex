@@ -1,7 +1,14 @@
-// Card structure from cards-western.json and cards-asia.json
+// Image source information
+export interface CardImage {
+  url: string;
+  source: 'tcgdex' | 'pokemontcg-io';
+  size?: 'small' | 'large' | 'low' | 'high';
+}
+
+// Card structure from cards-western.json
 export interface Card {
   id: string;
-  names: Record<string, string>; // Multi-language names (e.g., { en: "Pikachu", ja: "ピカチュウ" })
+  names: Record<string, string>; // Card names (English only: { en: "Pikachu" })
   set: string;
   number: string;
   setNumber?: string; // Combined field for searching "Set Number"
@@ -22,6 +29,8 @@ export interface Card {
   // TCGdex metadata for dynamic URLs (image constructed at runtime)
   seriesId?: string; // TCGdex series ID for constructing image URLs
   setId?: string; // TCGdex set ID for constructing image URLs
+  // Image URLs (ordered: primary first, backup second)
+  images?: CardImage[];
 }
 
 // Attack structure

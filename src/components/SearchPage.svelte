@@ -10,11 +10,9 @@
   import WishlistExportButton from './WishlistExportButton.svelte';
   import WishlistImportButton from './WishlistImportButton.svelte';
   import ModeToggle from './ModeToggle.svelte';
-  import LanguageSelector from './LanguageSelector.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
   import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
-  import { selectedLanguage } from '../stores/language';
   import { collection, totalCards } from '../stores/collection';
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { MODERN_SERIES } from '../constants';
@@ -27,8 +25,8 @@
 
   let { collectionOnly = false }: Props = $props();
 
-  // Determine localStorage key for filters
-  const filterKey = collectionOnly ? 'collection-filters' : 'search-filters';
+  // Determine localStorage key for filters (reactive to collectionOnly changes)
+  const filterKey = $derived(collectionOnly ? 'collection-filters' : 'search-filters');
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
@@ -64,9 +62,9 @@
         const query = searchQuery.trim();
         const queryLower = normalizeSetName(query);
 
-        // Filter by set name or pokemon name (always search in English)
+        // Filter by set name or pokemon name
         cards = cards.filter(card => {
-          const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || '';
+          const cardName = card.names['en'] || '';
           return (
             cardName.toLowerCase().includes(queryLower) ||
             card.set.toLowerCase().includes(queryLower) ||
@@ -150,24 +148,22 @@
 
   $effect(() => {
     // Build FlexSearch index after cards are loaded
-    // Always index English names for consistent search, but display in selected language
     if (!$cardsLoading && $filteredCards.length > 0) {
-      console.log(`Building search index for ${$filteredCards.length} cards (indexing English names)`);
+      console.log(`Building search index for ${$filteredCards.length} cards`);
 
       searchIndex = new Document({
         document: {
           id: 'id',
-          index: ['name']  // Always index English name for search
+          index: ['name']
         },
         tokenize: 'forward'
       });
 
-      // Add all filtered cards to index with English names for search consistency
+      // Add all filtered cards to index
       for (const card of $filteredCards) {
-        // Always use English name for search indexing (fallback to first available language)
         const searchableCard = {
           id: card.id,
-          name: card.names['en'] || card.names[Object.keys(card.names)[0]] || ''
+          name: card.names['en'] || ''
         };
         searchIndex.add(searchableCard);
       }
@@ -184,12 +180,9 @@
 
 <div class="min-h-screen bg-white">
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-    <!-- Mode Toggle and Language Selector (always visible) -->
+    <!-- Mode Toggle (always visible) -->
     <div class="mb-4">
-      <div class="flex items-center gap-3 flex-wrap">
-        <ModeToggle bind:mode />
-        <LanguageSelector />
-      </div>
+      <ModeToggle bind:mode />
     </div>
 
     {#if collectionOnly}

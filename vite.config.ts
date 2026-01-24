@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     watch: {
       ignored: [
+        '**/cards-database/**',
         '**/cards-database-*/**',
         '**/tcgdex-data/**',
         '**/pokemon-tcg-data/**'

@@ -1,49 +1,36 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type { Card } from '../types';
-import { selectedLanguage, getDatasetForLanguage, type Dataset } from './language';
 
 function createCardsStore() {
   const allCards = writable<Card[]>([]);
   const isLoading = writable<boolean>(false);
   const error = writable<string | null>(null);
 
-  // Dataset cache - stores both western and asian datasets
-  const datasetCache: Map<Dataset, Card[]> = new Map();
-
-  let currentDataset: Dataset = 'western';
   let hasInitialLoad = false;
 
   /**
-   * Load a dataset from JSON file (with caching)
+   * Load cards from JSON file
    */
-  async function loadDataset(dataset: Dataset): Promise<Card[]> {
-    // Return from cache if available
-    if (datasetCache.has(dataset)) {
-      console.log(`Using cached ${dataset} dataset`);
-      return datasetCache.get(dataset)!;
-    }
-
-    console.log(`Loading ${dataset} dataset...`);
+  async function loadCards(): Promise<Card[]> {
+    console.log('Loading cards...');
     isLoading.set(true);
     error.set(null);
 
     try {
-      const response = await fetch(`/cards-${dataset}.json`);
+      const response = await fetch('/cards-western.json');
       if (!response.ok) {
-        throw new Error(`Failed to load ${dataset} cards`);
+        throw new Error('Failed to load cards');
       }
 
       const cards: Card[] = await response.json();
-      console.log(`Loaded ${cards.length} cards from ${dataset} dataset`);
+      console.log(`Loaded ${cards.length} cards`);
 
-      // Cache the dataset
-      datasetCache.set(dataset, cards);
       return cards;
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       error.set(message);
-      console.error(`Error loading ${dataset} dataset:`, err);
+      console.error('Error loading cards:', err);
       throw err;
     } finally {
       isLoading.set(false);
@@ -51,37 +38,13 @@ function createCardsStore() {
   }
 
   /**
-   * Switch to a language (may require dataset switch)
-   */
-  async function switchToLanguage(language: string) {
-    const requiredDataset = getDatasetForLanguage(language);
-
-    // Check if we need to switch datasets
-    if (requiredDataset !== currentDataset || !hasInitialLoad) {
-      console.log(`Switching from ${currentDataset} to ${requiredDataset} dataset for language ${language}`);
-      currentDataset = requiredDataset;
-
-      try {
-        const cards = await loadDataset(requiredDataset);
-        allCards.set(cards);
-        hasInitialLoad = true;
-      } catch (err) {
-        console.error('Failed to switch dataset:', err);
-        // Keep existing cards on error
-      }
-    } else {
-      console.log(`Language ${language} uses same dataset (${currentDataset}), no switch needed`);
-    }
-  }
-
-  /**
-   * Initialize with western dataset on first use
+   * Initialize cards on first use
    */
   async function init() {
     if (!hasInitialLoad) {
-      console.log('Initializing cards store with western dataset');
+      console.log('Initializing cards store');
       try {
-        const cards = await loadDataset('western');
+        const cards = await loadCards();
         allCards.set(cards);
         hasInitialLoad = true;
       } catch (err) {
@@ -121,7 +84,6 @@ function createCardsStore() {
     setMap: { subscribe: setMap.subscribe },
     isLoading: { subscribe: isLoading.subscribe },
     error: { subscribe: error.subscribe },
-    switchToLanguage,
     init
   };
 }
@@ -136,13 +98,12 @@ export const isLoading = cards.isLoading;
 export const cardsError = cards.error;
 
 /**
- * Filtered cards - only cards that have a name in the selected language
- * This ensures cards without the selected language are not shown
+ * Filtered cards - currently just returns all cards (no filtering needed for single language)
  */
 export const filteredCards = derived(
-  [allCards, selectedLanguage],
-  ([$allCards, $language]) => {
-    return $allCards.filter(card => card.names[$language] !== undefined);
+  [allCards],
+  ([$allCards]) => {
+    return $allCards;
   }
 );
 
@@ -175,10 +136,5 @@ export const filteredSetMap = derived(filteredCards, $cards => {
   return map;
 });
 
-// Subscribe to language changes and switch datasets accordingly
-selectedLanguage.subscribe(async (newLanguage) => {
-  await cards.switchToLanguage(newLanguage);
-});
-
-// Initialize the store (load western dataset by default)
+// Initialize the store
 cards.init();
