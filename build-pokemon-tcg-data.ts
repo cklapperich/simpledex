@@ -161,7 +161,9 @@ export async function loadPokemonTCGData(): Promise<PokemonTCGData> {
           const set = sets.get(setId);
 
           if (set && card.number) {
-            const setNumberKey = `${set.name}|${card.number}`;
+            // Normalize card number by removing leading zeros for matching
+            const normalizedNumber = card.number.replace(/^0+(\d.*)/, '$1');
+            const setNumberKey = `${set.name}|${normalizedNumber}`;
             cardsBySetAndNumber.set(setNumberKey, card);
           }
 

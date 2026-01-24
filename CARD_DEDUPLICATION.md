@@ -122,13 +122,14 @@ Pokemon-tcg-data has a data error:
 
 ## Results
 
-- **Initial duplicates**: 2,003
-- **After first fix**: 2,001 eliminated (99.9%)
-- **Card number leading zeros fix (2026-01-23)**: 2,178 additional duplicates eliminated
-  - Fixed by normalizing card numbers: `004` → `4`, `099` → `99`
-  - Example: `me01-004` and `me1-4` now properly merge
-- **Remaining**: 2 (both documented edge cases below)
-- **Total cards**: 23,189 (down from 25,367)
+- **Initial duplicates**: ~2,003
+- **First ID normalization**: Eliminated ~2,001 duplicates
+- **Card number leading zeros fix (2026-01-23)**: 2,464 additional duplicates eliminated
+  - **Fix 1**: Normalize card numbers in `normalizeCardId()`: `004` → `4`, `099` → `99` (eliminated 2,178 duplicates)
+  - **Fix 2**: Normalize card numbers in Strategy 3 matching (both lookup and index building) (eliminated 286 duplicates)
+  - Example: `sv10.5b-029` and `zsv10pt5-29` now properly merge with both images
+- **Remaining**: 1 (documented edge case: Celebrations Classic Collection #15)
+- **Total cards**: 22,903 (down from 25,367 - eliminated 2,464 duplicates)
 - **Image coverage**: 100% (every card has at least one working image URL)
 
 ## File Locations

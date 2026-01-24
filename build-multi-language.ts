@@ -230,7 +230,9 @@ function findPokemonTCGCard(
 
   // Strategy 3: Try matching by set name + card number (handles completely different set IDs)
   // Example: lc-99 (tcgdex) vs base6-99 (pokemon-tcg-data) both = "Legendary Collection|99"
-  const setNumberKey = `${tcgdexCard.set}|${tcgdexCard.number}`;
+  // Normalize card number by removing leading zeros (029 -> 29)
+  const normalizedNumber = tcgdexCard.number.replace(/^0+(\d.*)/, '$1');
+  const setNumberKey = `${tcgdexCard.set}|${normalizedNumber}`;
   card = pokemonTCGData.cardsBySetAndNumber.get(setNumberKey);
   if (card) return card;
 
@@ -463,7 +465,8 @@ async function processDirectory(
   if (datasetName === 'Western' && pokemonTCGData.cards.size > 0) {
     const tcgdexCardIds = new Set(cards.map(c => c.id));
     const tcgdexNormalizedIds = new Set(cards.map(c => normalizeCardId(c.id)));
-    const tcgdexSetNumbers = new Set(cards.map(c => `${c.set}|${c.number}`));
+    // Normalize card numbers (remove leading zeros) for set+number matching
+    const tcgdexSetNumbers = new Set(cards.map(c => `${c.set}|${c.number.replace(/^0+(\d.*)/, '$1')}`));
     const missingCards: MultiLangCard[] = [];
 
     for (const [cardId, ptcgCard] of pokemonTCGData.cards) {
@@ -476,8 +479,9 @@ async function processDirectory(
       // Get set name from sets map (cards don't have set property in pokemon-tcg-data)
       const setId = cardId.split('-')[0];
       const ptcgSet = pokemonTCGData.sets.get(setId);
+      // Normalize card number (remove leading zeros) for matching
       const setNumberKey = ptcgSet && ptcgCard.number
-        ? `${ptcgSet.name}|${ptcgCard.number}`
+        ? `${ptcgSet.name}|${ptcgCard.number.replace(/^0+(\d.*)/, '$1')}`
         : null;
 
       if (!tcgdexCardIds.has(cardId) &&
