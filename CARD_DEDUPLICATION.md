@@ -69,27 +69,43 @@ if (!tcgdexCardIds.has(cardId) &&              // Strategy 1
 
 ## Card Number Normalization (Added 2026-01-23)
 
-The original normalization only removed leading zeros from **set IDs**, causing duplicates in card numbers:
+The original normalization only removed leading zeros from **set IDs**, causing duplicates in card numbers.
 
 ### Problem
-- TCGdex: `me01-004`, `me01-099` (3-digit card numbers)
-- pokemon-tcg-data: `me1-4`, `me1-99` (no leading zeros)
+Multiple places where card numbers weren't normalized:
+1. **ID normalization**: `me01-004` vs `me1-4` treated as different
+2. **Strategy 3 matching**: `Black Bolt|029` vs `Black Bolt|29` didn't match
 
-These were treated as different cards, causing 2,178 duplicates across multiple sets.
+### Solution (Two-Part Fix)
 
-### Solution
-Extended `normalizeCardId()` to also strip leading zeros from card numbers:
-
+**Fix 1: Normalize in `normalizeCardId()`** (build-multi-language.ts:208)
 ```typescript
 // Remove leading zeros from card number (004 -> 4, 099 -> 99)
 // Preserves variant suffixes like _A1, _B2
 cardNumber = cardNumber.replace(/^0+(\d.*)/, '$1');
 ```
 
+**Fix 2: Normalize in Strategy 3 matching** (multiple locations)
+```typescript
+// When building pokemon-tcg-data index (build-pokemon-tcg-data.ts:166)
+const normalizedNumber = card.number.replace(/^0+(\d.*)/, '$1');
+const setNumberKey = `${set.name}|${normalizedNumber}`;
+
+// When looking up TCGdex card (build-multi-language.ts:234)
+const normalizedNumber = tcgdexCard.number.replace(/^0+(\d.*)/, '$1');
+const setNumberKey = `${tcgdexCard.set}|${normalizedNumber}`;
+
+// When checking for duplicates (build-multi-language.ts:470, 484)
+const tcgdexSetNumbers = new Set(cards.map(c => `${c.set}|${c.number.replace(/^0+(\d.*)/, '$1')}`));
+const setNumberKey = `${ptcgSet.name}|${ptcgCard.number.replace(/^0+(\d.*)/, '$1')}`;
+```
+
 ### Impact
-- Eliminated **2,178 duplicates** (mostly from sets like Mega Evolution, HGSS Promos, etc.)
-- Cards now properly merge with both image sources
-- Example: `me01-004` (Exeggcute) now has both TCGdex and pokemon-tcg-data images
+- **Fix 1**: Eliminated 2,178 duplicates (sets like Mega Evolution, HGSS Promos)
+  - Example: `me01-004` (Exeggcute) now has both TCGdex and pokemon-tcg-data images
+- **Fix 2**: Eliminated 286 additional duplicates (sets like Black Bolt, White Flare)
+  - Example: `sv10.5b-029` (Emolga) now properly merges with `zsv10pt5-29`
+- **Total**: 2,464 duplicates eliminated
 
 ## Edge Cases
 
@@ -104,21 +120,14 @@ Scarlet & Violet/
 
 **Fix**: Skip files that have a matching directory with the same name.
 
-### 2. Celebrations Classic Collection #15
+### 2. Celebrations Classic Collection #15 (Only Remaining "Duplicate")
 Four **different cards** legitimately share the same number:
-- `cel25c-15_A`: Venusaur
-- `cel25c-15_B`: Here Comes Team Rocket!
-- `cel25c-15_C`: Rocket's Zapdos
-- `cel25c-15_D`: Claydol
+- `cel25c-15_A1`: Venusaur
+- `cel25c-15_A2`: Here Comes Team Rocket!
+- `cel25c-15_A3`: Rocket's Zapdos
+- `cel25c-15_A4`: Claydol
 
-**Status**: Not a duplicate - keep all 4.
-
-### 3. Black Bolt #60 Data Error
-Pokemon-tcg-data has a data error:
-- `zsv10pt5-60`: Escavalier #60 ✓
-- `zsv10pt5-80`: Antique Cover Fossil claiming to be #60 ✗
-
-**Status**: Source data error, cannot fix without upstream correction.
+**Status**: Not a duplicate - keep all 4. This is the only "duplicate" remaining in the system.
 
 ## Results
 
