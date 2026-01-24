@@ -32,7 +32,7 @@
   let modernOnly = $state(false);
   let indexReady = $state(false);
   let searchIndex: Document<Card>;
-  let activeFilters = $state(new SvelteSet<string>(loadFilters(filterKey)));
+  let activeFilters = $state(new SvelteSet<string>());
   let showFilterModal = $state(false);
   let mode = $state<'collection' | 'wishlist'>('collection');
 
@@ -170,6 +170,11 @@
 
       indexReady = true;
     }
+  });
+
+  // Load filters from localStorage when filterKey changes
+  $effect(() => {
+    activeFilters = new SvelteSet<string>(loadFilters(filterKey));
   });
 
   // Save filters to localStorage whenever they change

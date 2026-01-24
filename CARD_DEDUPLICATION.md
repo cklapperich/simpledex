@@ -28,11 +28,12 @@ pokemonTCGData.cards.get('lc-99')  // Direct lookup
 
 ### Strategy 2: Normalized ID Match
 ```typescript
-// Normalizes: removes dots, "pt", leading zeros
+// Normalizes: removes dots, "pt", leading zeros from set ID AND card number
 normalizeCardId('sm7.5') → 'sm75'
 normalizeCardId('sv01') → 'sv1'
 normalizeCardId('swsh12.5') → 'swsh125'
 normalizeCardId('swsh12pt5') → 'swsh125'  // Match!
+normalizeCardId('me01-004') → 'me1-4'     // Match! (fixed 2026-01-23)
 ```
 
 ### Strategy 3: Set Name + Card Number Match
@@ -66,6 +67,30 @@ if (!tcgdexCardIds.has(cardId) &&              // Strategy 1
 }
 ```
 
+## Card Number Normalization (Added 2026-01-23)
+
+The original normalization only removed leading zeros from **set IDs**, causing duplicates in card numbers:
+
+### Problem
+- TCGdex: `me01-004`, `me01-099` (3-digit card numbers)
+- pokemon-tcg-data: `me1-4`, `me1-99` (no leading zeros)
+
+These were treated as different cards, causing 2,178 duplicates across multiple sets.
+
+### Solution
+Extended `normalizeCardId()` to also strip leading zeros from card numbers:
+
+```typescript
+// Remove leading zeros from card number (004 -> 4, 099 -> 99)
+// Preserves variant suffixes like _A1, _B2
+cardNumber = cardNumber.replace(/^0+(\d.*)/, '$1');
+```
+
+### Impact
+- Eliminated **2,178 duplicates** (mostly from sets like Mega Evolution, HGSS Promos, etc.)
+- Cards now properly merge with both image sources
+- Example: `me01-004` (Exeggcute) now has both TCGdex and pokemon-tcg-data images
+
 ## Edge Cases
 
 ### 1. Set Definition Files
@@ -97,9 +122,13 @@ Pokemon-tcg-data has a data error:
 
 ## Results
 
-- **Started**: 2,003 duplicates
-- **Eliminated**: 2,001 (99.9%)
-- **Remaining**: 2 (both documented edge cases)
+- **Initial duplicates**: 2,003
+- **After first fix**: 2,001 eliminated (99.9%)
+- **Card number leading zeros fix (2026-01-23)**: 2,178 additional duplicates eliminated
+  - Fixed by normalizing card numbers: `004` → `4`, `099` → `99`
+  - Example: `me01-004` and `me1-4` now properly merge
+- **Remaining**: 2 (both documented edge cases below)
+- **Total cards**: 23,189 (down from 25,367)
 - **Image coverage**: 100% (every card has at least one working image URL)
 
 ## File Locations

@@ -192,7 +192,7 @@ function normalizeCardId(id: string): string {
   if (parts.length < 2) return id;
 
   let setId = parts[0];
-  const cardNumber = parts.slice(1).join('-');
+  let cardNumber = parts.slice(1).join('-');
 
   // Remove dots from set ID
   setId = setId.replace(/\./g, '');
@@ -203,6 +203,10 @@ function normalizeCardId(id: string): string {
   // Remove leading zeros from numbers in set ID (sv01 -> sv1, swsh03 -> swsh3)
   // But keep the letters and only remove zeros from the numeric part
   setId = setId.replace(/([a-z]+)0+(\d+)/g, '$1$2');
+
+  // Remove leading zeros from card number (004 -> 4, 099 -> 99)
+  // Preserves variant suffixes like _A1, _B2
+  cardNumber = cardNumber.replace(/^0+(\d.*)/, '$1');
 
   return `${setId}-${cardNumber}`;
 }
