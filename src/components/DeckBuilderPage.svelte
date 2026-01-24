@@ -15,12 +15,12 @@
   import { exportToPTCGO, importFromPTCGO, validateDeck } from '../utils/deckUtils';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
-  import { matchesFilters, normalizeSetName } from '../utils/cardFilters';
+  import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
   let searchIndex: Document<Card>;
-  let activeFilters = $state(new SvelteSet<string>());
+  let activeFilters = $state(new SvelteSet<string>(loadFilters('deck-builder-filters')));
   let editingName = $state(false);
   let tempName = $state('');
   let importText = $state('');
@@ -208,6 +208,11 @@
     } catch (error) {
       console.error('Error loading search index:', error);
     }
+  });
+
+  // Save filters to localStorage whenever they change
+  $effect(() => {
+    saveFilters('deck-builder-filters', activeFilters);
   });
 </script>
 

@@ -29,6 +29,12 @@
     { id: 'Tool', label: 'Tool', icon: '/icons/tool.png' },
     { id: 'Energy', label: 'Energy', icon: '/icons/energy.png' },
   ];
+
+  // Format filters - text-based filters
+  const formatFilters = [
+    { id: 'NoRulebox', label: 'No Rule Box', icon: null },
+    { id: 'ExpandedLegal', label: 'Expanded Legal', icon: null },
+  ];
 </script>
 
 <div class="filter-column">
@@ -67,6 +73,21 @@
         {:else}
           <span class="filter-icon-placeholder">{category.label[0]}</span>
         {/if}
+      </button>
+    {/each}
+  </div>
+
+  <!-- Format filters (rectangular text) -->
+  <div class="filter-section">
+    <div class="section-label">Format</div>
+    {#each formatFilters as filter (filter.id)}
+      <button
+        class="filter-button rectangular text-filter"
+        class:active={activeFilters.has(filter.id)}
+        onclick={() => onToggle(filter.id)}
+        title={filter.label}
+      >
+        <span class="filter-text">{filter.label}</span>
       </button>
     {/each}
   </div>
@@ -139,6 +160,23 @@
   .filter-button.active {
     border-color: #1f2937;
     box-shadow: 0 0 0 2px white, 0 0 0 4px #1f2937;
+  }
+
+  .filter-button.text-filter {
+    width: auto;
+    min-width: 108px;
+    padding: 0.5rem 1rem;
+  }
+
+  .filter-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+  }
+
+  .filter-button.active .filter-text {
+    color: #1f2937;
   }
 
   .filter-icon-img {

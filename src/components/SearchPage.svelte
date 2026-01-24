@@ -19,7 +19,7 @@
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber, sortCardsByReleaseDate } from '../utils/cardSorting';
-  import { matchesFilters, normalizeSetName } from '../utils/cardFilters';
+  import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
 
   interface Props {
     collectionOnly?: boolean;
@@ -27,11 +27,14 @@
 
   let { collectionOnly = false }: Props = $props();
 
+  // Determine localStorage key for filters
+  const filterKey = collectionOnly ? 'collection-filters' : 'search-filters';
+
   let searchQuery = $state('');
   let modernOnly = $state(false);
   let indexReady = $state(false);
   let searchIndex: Document<Card>;
-  let activeFilters = $state(new SvelteSet<string>());
+  let activeFilters = $state(new SvelteSet<string>(loadFilters(filterKey)));
   let showFilterModal = $state(false);
   let mode = $state<'collection' | 'wishlist'>('collection');
 
@@ -172,6 +175,11 @@
       indexReady = true;
     }
   });
+
+  // Save filters to localStorage whenever they change
+  $effect(() => {
+    saveFilters(filterKey, activeFilters);
+  });
 </script>
 
 <div class="min-h-screen bg-white">
@@ -254,32 +262,30 @@
         </p>
       </div>
     {:else}
-      <!-- Filter bar (only in collection mode) -->
-      {#if collectionOnly}
-        <!-- Mobile Filters Button -->
-        <div class="mb-2 md:hidden">
-          <button
-            onclick={() => showFilterModal = true}
-            class="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Filters
-            {#if activeFilters.size > 0}
-              <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
-                {activeFilters.size}
-              </span>
-            {/if}
-          </button>
-        </div>
+      <!-- Filter bar -->
+      <!-- Mobile Filters Button -->
+      <div class="mb-2 md:hidden">
+        <button
+          onclick={() => showFilterModal = true}
+          class="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Filters
+          {#if activeFilters.size > 0}
+            <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+              {activeFilters.size}
+            </span>
+          {/if}
+        </button>
+      </div>
 
-        <!-- Desktop Filter Column -->
-        <div class="mb-2 hidden md:block">
-          <FilterColumn activeFilters={activeFilters} onToggle={handleFilterToggle} />
-        </div>
-        <div class="border-t border-gray-300 mb-4"></div>
-      {/if}
+      <!-- Desktop Filter Column -->
+      <div class="mb-2 hidden md:block">
+        <FilterColumn activeFilters={activeFilters} onToggle={handleFilterToggle} />
+      </div>
+      <div class="border-t border-gray-300 mb-4"></div>
 
       <!-- Cards display -->
       {#if displayedCards.length === 0}
@@ -301,7 +307,7 @@
 </div>
 
 <!-- Filter Modal (mobile only) -->
-{#if showFilterModal && collectionOnly}
+{#if showFilterModal}
   <FilterModal
     activeFilters={activeFilters}
     onToggle={handleFilterToggle}

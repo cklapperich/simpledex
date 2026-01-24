@@ -31,6 +31,12 @@
     { id: 'Energy', label: 'Energy', icon: '/icons/energy.png' },
   ];
 
+  // Format filters
+  const formatFilters = [
+    { id: 'NoRulebox', label: 'No Rule Box', icon: null },
+    { id: 'ExpandedLegal', label: 'Expanded Legal', icon: null },
+  ];
+
   function handleBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
       onClose();
@@ -100,7 +106,7 @@
       </div>
 
       <!-- Categories Section -->
-      <div>
+      <div class="mb-6">
         <h3 class="text-sm font-semibold text-gray-700 mb-3">Card Types</h3>
         <div class="space-y-2">
           {#each categories as category (category.id)}
@@ -116,6 +122,30 @@
               <span class="flex-1 text-left text-gray-900">{category.label}</span>
               <div class="w-6 h-6 flex-shrink-0">
                 {#if activeFilters.has(category.id)}
+                  <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  </svg>
+                {:else}
+                  <div class="w-6 h-6 border-2 border-gray-300 rounded-full"></div>
+                {/if}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Format Filters Section -->
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Format</h3>
+        <div class="space-y-2">
+          {#each formatFilters as filter (filter.id)}
+            <button
+              onclick={() => onToggle(filter.id)}
+              class="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <span class="flex-1 text-left text-gray-900">{filter.label}</span>
+              <div class="w-6 h-6 flex-shrink-0">
+                {#if activeFilters.has(filter.id)}
                   <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
