@@ -2,6 +2,12 @@
   import type { Card } from '../types';
   import { sortDeckCards } from '../utils/deckUtils';
   import { cardMap } from '../stores/cards';
+  import { getCardImageUrl } from '../utils/cardImage';
+
+  // Helper to get card name
+  function getCardName(card: Card): string {
+    return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
+  }
 
   let {
     deckCards,
@@ -24,8 +30,8 @@
       <!-- Card Image (small thumbnail) -->
       <div class="w-16 h-22 flex-shrink-0">
         <img
-          src={card.image}
-          alt={card.name}
+          src={getCardImageUrl(card, 'en')}
+          alt={getCardName(card)}
           loading="lazy"
           class="w-full h-full object-cover rounded border border-gray-200"
         />
@@ -33,7 +39,7 @@
 
       <!-- Card Info -->
       <div class="flex-1 min-w-0">
-        <div class="font-medium text-sm truncate">{card.name}</div>
+        <div class="font-medium text-sm truncate">{getCardName(card)}</div>
         <div class="text-xs text-gray-500">{card.set} {card.number}</div>
         <div class="text-xs text-gray-400">{card.supertype}</div>
       </div>
