@@ -237,6 +237,61 @@ function buildImageArray(tcgdexCard: MultiLangCard, ptcgCard?: PokemonTCGCard): 
 }
 
 /**
+ * Merge duplicate cards, always preferring tcgdex data as the base
+ * Fills in missing fields from the duplicate
+ * For images: always prefer pokemontcg-io sources over tcgdex
+ */
+function mergeCards(tcgdexCard: MultiLangCard, duplicateCard: MultiLangCard): void {
+  // Fill in missing fields from duplicate (tcgdex data takes precedence)
+  if (!tcgdexCard.hp && duplicateCard.hp) {
+    tcgdexCard.hp = duplicateCard.hp;
+  }
+
+  if (!tcgdexCard.attacks && duplicateCard.attacks) {
+    tcgdexCard.attacks = duplicateCard.attacks;
+  }
+
+  if (!tcgdexCard.abilities && duplicateCard.abilities) {
+    tcgdexCard.abilities = duplicateCard.abilities;
+  }
+
+  if (!tcgdexCard.weaknesses && duplicateCard.weaknesses) {
+    tcgdexCard.weaknesses = duplicateCard.weaknesses;
+  }
+
+  if (!tcgdexCard.resistances && duplicateCard.resistances) {
+    tcgdexCard.resistances = duplicateCard.resistances;
+  }
+
+  if (!tcgdexCard.retreatCost && duplicateCard.retreatCost) {
+    tcgdexCard.retreatCost = duplicateCard.retreatCost;
+  }
+
+  // Merge images: prioritize pokemontcg-io sources, avoid duplicates by URL
+  const allImages = [...(tcgdexCard.images || []), ...(duplicateCard.images || [])];
+  const uniqueUrls = new Set<string>();
+  const mergedImages: CardImage[] = [];
+
+  // First pass: add all pokemontcg-io images
+  for (const img of allImages) {
+    if (img.source === 'pokemontcg-io' && !uniqueUrls.has(img.url)) {
+      mergedImages.push(img);
+      uniqueUrls.add(img.url);
+    }
+  }
+
+  // Second pass: add tcgdex images as backup
+  for (const img of allImages) {
+    if (img.source === 'tcgdex' && !uniqueUrls.has(img.url)) {
+      mergedImages.push(img);
+      uniqueUrls.add(img.url);
+    }
+  }
+
+  tcgdexCard.images = mergedImages;
+}
+
+/**
  * Process a directory of card files
  */
 async function processDirectory(
@@ -428,28 +483,15 @@ async function processDirectory(
       card.images = buildImageArray(card, ptcgCard);
 
       // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
-      const normalizedId = normalizeCardId(cardId);
-      const existingCard = normalizedIdMap.get(normalizedId);
+      const existingCard = normalizedIdMap.get(normalizedCardId);
 
       if (existingCard) {
-        // Merge images from duplicate into existing card (avoid duplicate images)
-        for (const img of card.images) {
-          if (!existingCard.images.some(e => e.url === img.url)) {
-            existingCard.images.push(img);
-          }
-        }
-        // Prefer card with more complete data (has abilities, attacks, etc.)
-        if ((card.abilities?.length || 0) > (existingCard.abilities?.length || 0) ||
-            (card.attacks?.length || 0) > (existingCard.attacks?.length || 0)) {
-          // Update existing card with more complete data, but keep merged images
-          const mergedImages = existingCard.images;
-          Object.assign(existingCard, card);
-          existingCard.images = mergedImages;
-        }
+        // Always keep tcgdex data (first occurrence), merge in missing fields from duplicate
+        mergeCards(existingCard, card);
         skippedCards++;
       } else {
         cards.push(card);
-        normalizedIdMap.set(normalizedId, card);
+        normalizedIdMap.set(normalizedCardId, card);
         processedCards++;
       }
 
@@ -468,8 +510,7 @@ async function processDirectory(
 
   // Find cards in pokemon-tcg-data but not in tcgdex
   if (datasetName === 'Western' && pokemonTCGData.cards.size > 0) {
-    const tcgdexCardIds = new Set(cards.map(c => c.id));
-    const tcgdexNormalizedIds = new Set(cards.map(c => normalizeCardId(c.id)));
+    const tcgdexCardIds = new Set(cards.map(c => c.id)); // Already normalized
     // Normalize card numbers (remove leading zeros) for set+number matching
     const tcgdexSetNumbers = new Set(cards.map(c => `${c.set}|${c.number.replace(/^0+(\d.*)/, '$1')}`));
     const missingCards: MultiLangCard[] = [];
@@ -490,7 +531,7 @@ async function processDirectory(
         : null;
 
       if (!tcgdexCardIds.has(cardId) &&
-          !tcgdexNormalizedIds.has(normalizedPtcgId) &&
+          !tcgdexCardIds.has(normalizedPtcgId) &&
           (!setNumberKey || !tcgdexSetNumbers.has(setNumberKey))) {
         if (ptcgSet) {
           // Skip Pokémon TCG Pocket cards (digital-only, not physical cards)

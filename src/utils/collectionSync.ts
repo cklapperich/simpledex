@@ -1,8 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Collection } from '../types'
 import { DEFAULT_CARD_VARIATION, DEFAULT_LANGUAGE } from '../constants'
-import { selectedLanguage } from '../stores/language'
-import { get } from 'svelte/store'
 
 interface SyncResult {
   success: boolean
@@ -10,23 +8,18 @@ interface SyncResult {
 }
 
 export async function loadFromSupabase(userId: string): Promise<Record<string, number>> {
-  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
-  console.log('[CollectionSync] loadFromSupabase called. userId:', userId, 'language:', currentLanguage);
-
   try {
     const { data, error } = await supabase
       .from('collections')
       .select('card_id, quantity')
       .eq('user_id', userId)
       .eq('variation', DEFAULT_CARD_VARIATION)
-      .eq('language', currentLanguage)
+      .eq('language', DEFAULT_LANGUAGE)
 
     if (error) {
-      console.error('[CollectionSync] Error loading from Supabase:', error)
+      console.error('Error loading from Supabase:', error)
       return {}
     }
-
-    console.log('[CollectionSync] Supabase returned', data?.length || 0, 'rows');
 
     const collection: Record<string, number> = {}
     if (data) {
@@ -35,7 +28,6 @@ export async function loadFromSupabase(userId: string): Promise<Record<string, n
       }
     }
 
-    console.log('[CollectionSync] Returning collection with', Object.keys(collection).length, 'cards');
     return collection
   } catch (error) {
     console.error('[CollectionSync] Exception loading from Supabase:', error)
@@ -48,8 +40,6 @@ export async function saveToSupabase(
   cardId: string,
   quantity: number
 ): Promise<SyncResult> {
-  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
-
   try {
     const { error } = await supabase
       .from('collections')
@@ -58,7 +48,7 @@ export async function saveToSupabase(
           user_id: userId,
           card_id: cardId,
           variation: DEFAULT_CARD_VARIATION,
-          language: currentLanguage,
+          language: DEFAULT_LANGUAGE,
           quantity,
         },
         { onConflict: 'user_id,card_id,variation,language' }
@@ -78,8 +68,6 @@ export async function saveToSupabase(
 }
 
 export async function deleteFromSupabase(userId: string, cardId: string): Promise<SyncResult> {
-  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
-
   try {
     const { error } = await supabase
       .from('collections')
@@ -87,7 +75,7 @@ export async function deleteFromSupabase(userId: string, cardId: string): Promis
       .eq('user_id', userId)
       .eq('card_id', cardId)
       .eq('variation', DEFAULT_CARD_VARIATION)
-      .eq('language', currentLanguage)
+      .eq('language', DEFAULT_LANGUAGE)
 
     if (error) {
       console.error('Error deleting from Supabase:', error)
@@ -106,8 +94,6 @@ export async function mergeCollections(
   userId: string,
   localCollection: Collection
 ): Promise<SyncResult> {
-  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
-
   try {
     // Load existing Supabase collection
     const supabaseCollection = await loadFromSupabase(userId)
@@ -125,7 +111,7 @@ export async function mergeCollections(
       user_id: userId,
       card_id: cardId,
       variation: DEFAULT_CARD_VARIATION,
-      language: currentLanguage,
+      language: DEFAULT_LANGUAGE,
       quantity,
     }))
 
@@ -152,37 +138,45 @@ export async function syncFullCollection(
   userId: string,
   collection: Collection
 ): Promise<SyncResult> {
-  const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
-
   try {
-    // Delete all existing records for this user
-    const { error: deleteError } = await supabase
-      .from('collections')
-      .delete()
-      .eq('user_id', userId)
-      .eq('variation', DEFAULT_CARD_VARIATION)
-      .eq('language', currentLanguage)
+    // Load existing collection to calculate diff
+    const existingCollection = await loadFromSupabase(userId)
 
-    if (deleteError) {
-      console.error('Error deleting existing collection:', deleteError)
-      return { success: false, error: deleteError.message }
-    }
-
-    // Insert new collection
+    // Upsert all cards in new collection (insert or update)
     const upsertData = Object.entries(collection).map(([cardId, quantity]) => ({
       user_id: userId,
       card_id: cardId,
       variation: DEFAULT_CARD_VARIATION,
-      language: currentLanguage,
+      language: DEFAULT_LANGUAGE,
       quantity,
     }))
 
     if (upsertData.length > 0) {
-      const { error: insertError } = await supabase.from('collections').insert(upsertData)
+      const { error: upsertError } = await supabase
+        .from('collections')
+        .upsert(upsertData, { onConflict: 'user_id,card_id,variation,language' })
 
-      if (insertError) {
-        console.error('Error inserting new collection:', insertError)
-        return { success: false, error: insertError.message }
+      if (upsertError) {
+        console.error('Error upserting collection:', upsertError)
+        return { success: false, error: upsertError.message }
+      }
+    }
+
+    // Delete cards that exist in Supabase but not in new collection
+    const cardsToDelete = Object.keys(existingCollection).filter(cardId => !(cardId in collection))
+
+    if (cardsToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('collections')
+        .delete()
+        .eq('user_id', userId)
+        .eq('variation', DEFAULT_CARD_VARIATION)
+        .eq('language', DEFAULT_LANGUAGE)
+        .in('card_id', cardsToDelete)
+
+      if (deleteError) {
+        console.error('Error deleting removed cards:', deleteError)
+        return { success: false, error: deleteError.message }
       }
     }
 

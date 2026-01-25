@@ -3,7 +3,6 @@ import type { Collection, CollectionResult } from '../types';
 import { user } from './auth';
 import { loadFromSupabase, saveToSupabase, deleteFromSupabase, mergeCollections, syncFullCollection } from '../utils/collectionSync';
 import { STORAGE_KEYS, MAX_CARD_QUANTITY } from '../constants';
-import { selectedLanguage } from './language';
 
 // Module-level state for tracking current user and sync status
 let currentUserId: string | null = null;
@@ -57,21 +56,15 @@ function createCollectionStore() {
 
   // Handle user login - merge localStorage with Supabase
   async function handleLogin(userId: string) {
-    console.log('[Collection] handleLogin called for user:', userId);
-    if (isSyncing) {
-      console.log('[Collection] Already syncing, skipping');
-      return;
-    }
+    if (isSyncing) return;
     isSyncing = true;
 
     try {
       syncError.set(null); // Clear any previous errors
       const localCollection = get({ subscribe });
-      console.log('[Collection] Local collection has', Object.keys(localCollection).length, 'cards');
 
       // Merge localStorage into Supabase
       if (Object.keys(localCollection).length > 0) {
-        console.log('[Collection] Merging local collection with Supabase');
         const mergeResult = await mergeCollections(userId, localCollection);
         if (!mergeResult.success) {
           syncError.set(mergeResult.error || 'Failed to merge collections');
@@ -79,11 +72,8 @@ function createCollectionStore() {
       }
 
       // Load merged collection from Supabase
-      console.log('[Collection] Loading collection from Supabase');
       const supabaseCollection = await loadFromSupabase(userId);
-      console.log('[Collection] Loaded', Object.keys(supabaseCollection).length, 'cards from Supabase');
       set(supabaseCollection);
-      console.log('[Collection] Collection set successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown login sync error';
       console.error('Error during login sync:', error);
@@ -118,21 +108,6 @@ function createCollectionStore() {
     }
   });
 
-  // Subscribe to language changes - reload collection when language changes
-  const unsubscribeLanguage = selectedLanguage.subscribe(async (newLanguage) => {
-    if (currentUserId && !isSyncing) {
-      // Language changed while logged in - reload collection for new language
-      isSyncing = true;
-      try {
-        const supabaseCollection = await loadFromSupabase(currentUserId);
-        set(supabaseCollection);
-      } catch (error) {
-        console.error('Error reloading collection for new language:', error);
-      } finally {
-        isSyncing = false;
-      }
-    }
-  });
 
   return {
     subscribe,

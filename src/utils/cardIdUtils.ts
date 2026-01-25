@@ -1,3 +1,18 @@
+// Regex patterns for card ID normalization
+const DOT_REMOVAL = /\./g;
+const PT_NOTATION = /pt/g;
+const CELEBRATIONS_CLASSIC = /^cel25c$/;
+const LEADING_ZEROS_IN_SET = /([a-z]+)0+(\d+)/g;
+// Subset suffixes that should be removed from set IDs:
+// - gg = Galarian Gallery (e.g., swsh12pt5gg)
+// - tg = Trainer Gallery (e.g., swsh9tg, swsh10tg, swsh11tg, swsh12tg)
+// - sv = Shiny Vault (e.g., swsh45sv for Shining Fates Shiny Vault)
+// - rc = Radiant Collection (legacy, kept for compatibility)
+const SUBSET_SUFFIXES = /(gg|tg|rc|sv)$/;
+const LEADING_ZEROS = /^0+(\d.*)/;
+const VARIANT_UNDERSCORE = /_([A-Z])/g;
+const TRAILING_VARIANT_ONE = /([A-Z])1$/;
+
 /**
  * Normalize card ID for matching between databases
  * Handles variations like:
@@ -18,33 +33,33 @@ export function normalizeCardId(id: string): string {
   let cardNumber = parts.slice(1).join('-');
 
   // Remove dots from set ID
-  setId = setId.replace(/\./g, '');
+  setId = setId.replace(DOT_REMOVAL, '');
 
   // Convert "pt" notation to match (swsh12pt5 -> swsh125)
-  setId = setId.replace(/pt/g, '');
+  setId = setId.replace(PT_NOTATION, '');
 
   // Normalize Celebrations Classic Collection: cel25c -> cel25
-  setId = setId.replace(/^cel25c$/, 'cel25');
+  setId = setId.replace(CELEBRATIONS_CLASSIC, 'cel25');
 
   // Remove leading zeros from numbers in set ID (sv01 -> sv1, swsh03 -> swsh3)
   // But keep the letters and only remove zeros from the numeric part
-  setId = setId.replace(/([a-z]+)0+(\d+)/g, '$1$2');
+  setId = setId.replace(LEADING_ZEROS_IN_SET, '$1$2');
 
   // Remove subset suffixes (gg = Galarian Gallery, tg = Trainer Gallery, rc = Radiant Collection, sv = Shiny Vault)
   // Examples: swsh125gg -> swsh125, swsh12tg -> swsh12, swsh45sv -> swsh45
-  setId = setId.replace(/(gg|tg|rc|sv)$/, '');
+  setId = setId.replace(SUBSET_SUFFIXES, '');
 
   // Remove leading zeros from card number (004 -> 4, 099 -> 99)
   // Preserves variant suffixes like _A1, _B2
-  cardNumber = cardNumber.replace(/^0+(\d.*)/, '$1');
+  cardNumber = cardNumber.replace(LEADING_ZEROS, '$1');
 
   // Remove underscores from variant suffixes (15_A1 -> 15A1)
-  cardNumber = cardNumber.replace(/_([A-Z])/g, '$1');
+  cardNumber = cardNumber.replace(VARIANT_UNDERSCORE, '$1');
 
   // Remove trailing "1" after variant letters ONLY (15A1 -> 15A)
   // This handles tcgdex duplicates where 15A and 15A1 are the same card
   // But preserves 15A2, 15A3, 15A4 as different cards
-  cardNumber = cardNumber.replace(/([A-Z])1$/, '$1');
+  cardNumber = cardNumber.replace(TRAILING_VARIANT_ONE, '$1');
 
   return `${setId}-${cardNumber}`;
 }

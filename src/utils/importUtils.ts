@@ -130,8 +130,8 @@ export function parseCSV(csvContent: string): {
       continue;
     }
 
-    // Add to collection (last occurrence wins for duplicates)
-    collection[cardId] = quantity;
+    // Add to collection (merge duplicates by adding quantities)
+    collection[cardId] = (collection[cardId] || 0) + quantity;
   }
 
   const imported = Object.keys(collection).length;
