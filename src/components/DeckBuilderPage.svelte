@@ -16,6 +16,12 @@
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
   import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
+  import { getCardImageUrl } from '../utils/cardImage';
+
+  // Helper to get card name
+  function getCardName(card: Card): string {
+    return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
+  }
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
@@ -53,10 +59,11 @@
       const queryLower = normalizeSetName(query);
 
       cards = cards.filter(card => {
+        const cardName = getCardName(card).toLowerCase();
         return (
-          card.name.toLowerCase().includes(queryLower) ||
+          cardName.includes(queryLower) ||
           card.set.toLowerCase().includes(queryLower) ||
-          card.setNumber.toLowerCase().includes(queryLower)
+          (card.setNumber || '').toLowerCase().includes(queryLower)
         );
       });
     }
@@ -333,8 +340,8 @@
               >
                 <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
                   <img
-                    src={card.image}
-                    alt={card.name}
+                    src={getCardImageUrl(card, 'en')}
+                    alt={getCardName(card)}
                     loading="lazy"
                     class="w-full h-full object-cover"
                   />
