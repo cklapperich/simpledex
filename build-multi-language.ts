@@ -3,6 +3,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { glob } from 'glob';
 import { loadPokemonTCGData, convertPokemonTCGCard, type PokemonTCGCard, type PokemonTCGData } from './build-pokemon-tcg-data';
+import { normalizeCardId } from './src/utils/cardIdUtils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -180,38 +181,6 @@ function extractAbilities(fileContent: string, primaryLang: string): Array<{
 }
 
 /**
- * Normalize card ID for matching between databases
- * Handles variations like:
- * - Dots: sm7.5 vs sm75
- * - "pt" notation: swsh12.5 vs swsh12pt5
- * - Leading zeros: sv01 vs sv1
- */
-function normalizeCardId(id: string): string {
-  // Split into set ID and card number
-  const parts = id.split('-');
-  if (parts.length < 2) return id;
-
-  let setId = parts[0];
-  let cardNumber = parts.slice(1).join('-');
-
-  // Remove dots from set ID
-  setId = setId.replace(/\./g, '');
-
-  // Convert "pt" notation to match (swsh12pt5 -> swsh125)
-  setId = setId.replace(/pt/g, '');
-
-  // Remove leading zeros from numbers in set ID (sv01 -> sv1, swsh03 -> swsh3)
-  // But keep the letters and only remove zeros from the numeric part
-  setId = setId.replace(/([a-z]+)0+(\d+)/g, '$1$2');
-
-  // Remove leading zeros from card number (004 -> 4, 099 -> 99)
-  // Preserves variant suffixes like _A1, _B2
-  cardNumber = cardNumber.replace(/^0+(\d.*)/, '$1');
-
-  return `${setId}-${cardNumber}`;
-}
-
-/**
  * Try to find pokemon-tcg-data card with multiple matching strategies
  */
 function findPokemonTCGCard(
@@ -288,6 +257,7 @@ async function processDirectory(
   console.log(`Found ${cardFiles.length} files`);
 
   const cards: MultiLangCard[] = [];
+  const normalizedIdMap = new Map<string, MultiLangCard>(); // Track cards by normalized ID for deduplication
   let processedCards = 0;
   let skippedCards = 0;
 
@@ -322,6 +292,11 @@ async function processDirectory(
       // Extract names for all available languages
       const names = extractNames(fileContent, expectedLanguages);
 
+      // Normalize card names: replace "-GX" and "-EX" with space versions for consistency
+      for (const lang in names) {
+        names[lang] = names[lang].replace(/-GX$/, ' GX').replace(/-EX$/, ' EX');
+      }
+
       // Skip cards with no names in expected languages
       if (Object.keys(names).length === 0) {
         skippedCards++;
@@ -333,6 +308,12 @@ async function processDirectory(
       const setName = pathParts[pathParts.length - 2];
       const seriesName = pathParts[pathParts.length - 3];
       const cardNumber = fileName.replace('.ts', '');
+
+      // Skip Pokémon TCG Pocket cards (digital-only, not physical cards)
+      if (seriesName === 'Pokémon TCG Pocket') {
+        skippedCards++;
+        continue;
+      }
 
       // Get series ID
       const seriesFilePath = path.join(path.dirname(cardFile), `../../${seriesName}.ts`);
@@ -417,16 +398,17 @@ async function processDirectory(
       }
 
       const cardId = `${setId}-${cardNumber}`;
+      const normalizedCardId = normalizeCardId(cardId);
 
       const card: MultiLangCard = {
-        id: cardId,
+        id: normalizedCardId,
         names,
         set: setName,
         number: cardNumber,
         setNumber: `${setName} ${cardNumber}`,
         releaseDate: releaseDate.replace(/-/g, '/'),
         series: seriesName,
-        supertype: categoryMatch ? categoryMatch[1] : 'Pokemon',
+        supertype: categoryMatch ? categoryMatch[1].replace('Pokémon', 'Pokemon') : 'Pokemon',
         subtypes: stageMatch ? [stageMatch[1]] : [],
         types,
         ptcgoCode,
@@ -445,8 +427,31 @@ async function processDirectory(
       const ptcgCard = findPokemonTCGCard(cardId, card, pokemonTCGData);
       card.images = buildImageArray(card, ptcgCard);
 
-      cards.push(card);
-      processedCards++;
+      // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
+      const normalizedId = normalizeCardId(cardId);
+      const existingCard = normalizedIdMap.get(normalizedId);
+
+      if (existingCard) {
+        // Merge images from duplicate into existing card (avoid duplicate images)
+        for (const img of card.images) {
+          if (!existingCard.images.some(e => e.url === img.url)) {
+            existingCard.images.push(img);
+          }
+        }
+        // Prefer card with more complete data (has abilities, attacks, etc.)
+        if ((card.abilities?.length || 0) > (existingCard.abilities?.length || 0) ||
+            (card.attacks?.length || 0) > (existingCard.attacks?.length || 0)) {
+          // Update existing card with more complete data, but keep merged images
+          const mergedImages = existingCard.images;
+          Object.assign(existingCard, card);
+          existingCard.images = mergedImages;
+        }
+        skippedCards++;
+      } else {
+        cards.push(card);
+        normalizedIdMap.set(normalizedId, card);
+        processedCards++;
+      }
 
       if (processedCards % 500 === 0) {
         console.log(`  Processed ${processedCards} cards...`);
@@ -488,6 +493,11 @@ async function processDirectory(
           !tcgdexNormalizedIds.has(normalizedPtcgId) &&
           (!setNumberKey || !tcgdexSetNumbers.has(setNumberKey))) {
         if (ptcgSet) {
+          // Skip Pokémon TCG Pocket cards (digital-only, not physical cards)
+          if (ptcgSet.series === 'Pokémon TCG Pocket') {
+            continue;
+          }
+
           const missingCard = convertPokemonTCGCard(ptcgCard, ptcgSet);
           missingCard.images = [{
             url: ptcgCard.images.small,

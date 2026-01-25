@@ -11,6 +11,7 @@ interface SyncResult {
 
 export async function loadFromSupabase(userId: string): Promise<Record<string, number>> {
   const currentLanguage = get(selectedLanguage) || DEFAULT_LANGUAGE;
+  console.log('[CollectionSync] loadFromSupabase called. userId:', userId, 'language:', currentLanguage);
 
   try {
     const { data, error } = await supabase
@@ -21,9 +22,11 @@ export async function loadFromSupabase(userId: string): Promise<Record<string, n
       .eq('language', currentLanguage)
 
     if (error) {
-      console.error('Error loading from Supabase:', error)
+      console.error('[CollectionSync] Error loading from Supabase:', error)
       return {}
     }
+
+    console.log('[CollectionSync] Supabase returned', data?.length || 0, 'rows');
 
     const collection: Record<string, number> = {}
     if (data) {
@@ -32,9 +35,10 @@ export async function loadFromSupabase(userId: string): Promise<Record<string, n
       }
     }
 
+    console.log('[CollectionSync] Returning collection with', Object.keys(collection).length, 'cards');
     return collection
   } catch (error) {
-    console.error('Exception loading from Supabase:', error)
+    console.error('[CollectionSync] Exception loading from Supabase:', error)
     return {}
   }
 }

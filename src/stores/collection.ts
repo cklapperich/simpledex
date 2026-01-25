@@ -57,15 +57,21 @@ function createCollectionStore() {
 
   // Handle user login - merge localStorage with Supabase
   async function handleLogin(userId: string) {
-    if (isSyncing) return;
+    console.log('[Collection] handleLogin called for user:', userId);
+    if (isSyncing) {
+      console.log('[Collection] Already syncing, skipping');
+      return;
+    }
     isSyncing = true;
 
     try {
       syncError.set(null); // Clear any previous errors
       const localCollection = get({ subscribe });
+      console.log('[Collection] Local collection has', Object.keys(localCollection).length, 'cards');
 
       // Merge localStorage into Supabase
       if (Object.keys(localCollection).length > 0) {
+        console.log('[Collection] Merging local collection with Supabase');
         const mergeResult = await mergeCollections(userId, localCollection);
         if (!mergeResult.success) {
           syncError.set(mergeResult.error || 'Failed to merge collections');
@@ -73,8 +79,11 @@ function createCollectionStore() {
       }
 
       // Load merged collection from Supabase
+      console.log('[Collection] Loading collection from Supabase');
       const supabaseCollection = await loadFromSupabase(userId);
+      console.log('[Collection] Loaded', Object.keys(supabaseCollection).length, 'cards from Supabase');
       set(supabaseCollection);
+      console.log('[Collection] Collection set successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown login sync error';
       console.error('Error during login sync:', error);
@@ -93,14 +102,19 @@ function createCollectionStore() {
   // Subscribe to user changes - store the unsubscribe function to prevent memory leak
   const unsubscribeUser = user.subscribe(async ($user) => {
     const newUserId = $user?.id || null;
+    console.log('[Collection] User subscription fired. User ID:', newUserId, 'Current user ID:', currentUserId);
 
     if (newUserId && newUserId !== currentUserId) {
       // User just logged in
+      console.log('[Collection] User logged in, calling handleLogin');
       currentUserId = newUserId;
       await handleLogin(newUserId);
     } else if (!newUserId && currentUserId) {
       // User just logged out
+      console.log('[Collection] User logged out');
       handleLogout();
+    } else {
+      console.log('[Collection] No user state change to handle');
     }
   });
 

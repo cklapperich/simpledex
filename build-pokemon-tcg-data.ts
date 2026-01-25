@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { glob } from 'glob';
+import { normalizeCardId } from './src/utils/cardIdUtils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const POKEMON_TCG_DATA_DIR = path.join(__dirname, 'pokemon-tcg-data');
@@ -187,14 +188,14 @@ export async function loadPokemonTCGData(): Promise<PokemonTCGData> {
  */
 export function convertPokemonTCGCard(ptcgCard: PokemonTCGCard, ptcgSet: PokemonTCGSet): MultiLangCard {
   return {
-    id: ptcgCard.id,
-    names: { en: ptcgCard.name }, // Only English name available
+    id: normalizeCardId(ptcgCard.id),
+    names: { en: ptcgCard.name.replace(/-GX$/, ' GX').replace(/-EX$/, ' EX') }, // Normalize -GX and -EX to space versions
     set: ptcgSet.name,
     number: ptcgCard.number,
     setNumber: `${ptcgSet.name} ${ptcgCard.number}`,
     releaseDate: ptcgSet.releaseDate.replace(/-/g, '/'),
     series: ptcgSet.series,
-    supertype: ptcgCard.supertype,
+    supertype: ptcgCard.supertype.replace('Pokémon', 'Pokemon'), // Normalize accent
     subtypes: ptcgCard.subtypes || [],
     types: ptcgCard.types || [],
     ptcgoCode: ptcgSet.ptcgoCode,

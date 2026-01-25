@@ -7,7 +7,9 @@
     "build": "vite build",
     "build:cards": "git submodule update --init --remote && tsx build-multi-language.ts",
     "build:local": "npm run build:cards && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:dry-run": "tsx migrate-card-ids.ts",
+    "migrate:execute": "tsx migrate-card-ids.ts --execute"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +19,7 @@
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "@tsconfig/svelte": "^5.0.6",
     "@types/node": "^22.10.5",
+    "dotenv": "^17.2.3",
     "supabase": "^2.72.8",
     "svelte": "^5.47.1",
     "tslib": "^2.8.1",

@@ -18,7 +18,7 @@ function hasRulebox(card: Card): boolean {
   }
 
   // Only check name/subtype patterns for Pokemon cards
-  if (card.supertype === 'Pokémon') {
+  if (card.supertype === 'Pokemon') {
     const name = card.names.en || Object.values(card.names)[0];
 
     // Handle edge case where names might be empty
@@ -56,9 +56,10 @@ function hasRulebox(card: Card): boolean {
 /**
  * Checks if a card is legal in Expanded format (Black & White onwards)
  * Uses EXCLUSION logic: filters OUT old series, automatically includes new series
+ * Note: Pokémon TCG Pocket cards are excluded at build time (not included in output)
  */
 function isExpandedLegal(card: Card): boolean {
-  // Series to exclude (pre-Black & White era + special sets)
+  // Series to exclude (pre-Black & White era only)
   const excludedSeries = [
     // Pre-BW era
     'Base',
@@ -72,61 +73,96 @@ function isExpandedLegal(card: Card): boolean {
     'Platinum',
     'HeartGold & SoulSilver',
     'Call of Legends',
-    // Special/promotional sets
-    'McDonald\'s Collection',
+    // Special sets
     'Trainer kits',
-    'Pokémon TCG Pocket',
     'data'
   ];
 
-  return !excludedSeries.includes(card.series);
+  // Check series exclusion first
+  if (excludedSeries.includes(card.series)) {
+    return false;
+  }
+
+  // Special handling for "Other" series: use date-based filtering
+  // "Other" includes both old sets (Best of Game 2002) and modern sets (McDonald's 2011+)
+  // Black & White started 2011/11/16, so exclude "Other" cards before 2011/04/01
+  if (card.series === 'Other') {
+    const releaseDate = card.releaseDate;
+    const bwCutoffDate = '2011/04/01'; // Well before Black & White launch
+    return releaseDate >= bwCutoffDate;
+  }
+
+  return true;
 }
 
 /**
- * Checks if a card matches any of the active filters
- * Filters can be:
- * - Pokemon energy types (Fire, Water, Grass, etc.)
- * - Card categories (Energy, Trainer)
- * - Trainer subcategories (Item, Supporter, Tool)
- * - Format filters (NoRulebox, ExpandedLegal)
+ * Checks if a card matches the active filters
+ * Filter logic:
+ * - Type/category filters (Fire, Water, Trainer, Item, etc.) use OR logic (match any)
+ * - Format filters (NoRulebox, ExpandedLegal) use AND logic (match all)
+ * - Combined: (match any type/category) AND (match all formats)
  */
 export function matchesFilters(card: Card, activeFilters: Set<string>): boolean {
   if (activeFilters.size === 0) return true;
 
-  // Check each active filter
+  // Separate filters into categories
+  const formatFilters: string[] = [];
+  const typeFilters: string[] = [];
+
   for (const filter of activeFilters) {
-    // NEW: No rulebox filter
-    if (filter === 'NoRulebox' && !hasRulebox(card)) {
-      return true;
-    }
-
-    // NEW: Expanded legal filter
-    if (filter === 'ExpandedLegal' && isExpandedLegal(card)) {
-      return true;
-    }
-
-    // Check if it's a type filter (Pokémon energy types)
-    if (card.types && card.types.includes(filter)) {
-      return true;
-    }
-
-    // Check if it's a category filter
-    if (filter === 'Energy' && card.supertype === 'Energy') {
-      return true;
-    }
-
-    // Check for Trainer supertype (matches all trainer cards)
-    if (filter === 'Trainer' && card.supertype === 'Trainer') {
-      return true;
-    }
-
-    // For Trainer subcategories (Item, Supporter, Tool)
-    if (card.supertype === 'Trainer' && card.subtypes.includes(filter)) {
-      return true;
+    if (filter === 'NoRulebox' || filter === 'ExpandedLegal') {
+      formatFilters.push(filter);
+    } else {
+      typeFilters.push(filter);
     }
   }
 
-  return false;
+  // Check format filters (must match ALL)
+  for (const filter of formatFilters) {
+    if (filter === 'NoRulebox' && hasRulebox(card)) {
+      return false;
+    }
+    if (filter === 'ExpandedLegal' && !isExpandedLegal(card)) {
+      return false;
+    }
+  }
+
+  // Check type/category filters (must match at least ONE, if any exist)
+  if (typeFilters.length > 0) {
+    let matchesType = false;
+
+    for (const filter of typeFilters) {
+      // Check if it's a type filter (Pokémon energy types)
+      if (card.types && card.types.includes(filter)) {
+        matchesType = true;
+        break;
+      }
+
+      // Check if it's a category filter
+      if (filter === 'Energy' && card.supertype === 'Energy') {
+        matchesType = true;
+        break;
+      }
+
+      // Check for Trainer supertype (matches all trainer cards)
+      if (filter === 'Trainer' && card.supertype === 'Trainer') {
+        matchesType = true;
+        break;
+      }
+
+      // For Trainer subcategories (Item, Supporter, Tool)
+      if (card.supertype === 'Trainer' && card.subtypes.includes(filter)) {
+        matchesType = true;
+        break;
+      }
+    }
+
+    if (!matchesType) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
