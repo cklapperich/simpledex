@@ -1,6 +1,4 @@
 import type { Card, Deck, DeckValidation } from '../types';
-import { get } from 'svelte/store';
-import { cardMap } from '../stores/cards';
 
 /**
  * Export deck to PTCGO format
