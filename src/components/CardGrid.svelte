@@ -2,7 +2,13 @@
   import type { Card } from '../types';
   import CardItem from './CardItem.svelte';
 
-  let { cards }: { cards: Card[] } = $props();
+  interface Props {
+    cards: Card[];
+    collection?: Record<string, number>;
+    wishlist?: Record<string, boolean>;
+  }
+
+  let { cards, collection, wishlist }: Props = $props();
 </script>
 
 {#if cards.length === 0}
@@ -19,7 +25,7 @@
 {:else}
   <div class="grid grid-cols-2 landscape:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
     {#each cards as card (card.id)}
-      <CardItem {card} />
+      <CardItem {card} {collection} {wishlist} />
     {/each}
   </div>
 {/if}

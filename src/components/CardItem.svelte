@@ -7,16 +7,29 @@
   import { Star } from 'lucide-svelte';
   import { getAllCardImageUrls } from '../utils/cardImage';
 
-  let { card }: { card: Card } = $props();
+  interface Props {
+    card: Card;
+    collection?: Record<string, number>;
+    wishlist?: Record<string, boolean>;
+  }
+
+  let { card, collection: propCollection, wishlist: propWishlist }: Props = $props();
 
   // Get mode from context (defaults to 'collection' if not provided)
   const modeContext = getContext<(() => 'collection' | 'wishlist') | undefined>('mode');
   const mode = $derived(modeContext ? modeContext() : 'collection');
 
-  // Reactive quantity check using store subscription
-  const hasCard = $derived($collection[card.id] > 0);
-  const quantity = $derived($collection[card.id] || 0);
-  const isOnWishlist = $derived($wishlist[card.id] === true);
+  // Get readOnly flag from context
+  const readOnly = getContext<boolean>('readOnly') || false;
+
+  // Use props if in read-only mode, otherwise use stores
+  const activeCollection = $derived(propCollection || $collection);
+  const activeWishlist = $derived(propWishlist || $wishlist);
+
+  // Reactive quantity check
+  const hasCard = $derived(activeCollection[card.id] > 0);
+  const quantity = $derived(activeCollection[card.id] || 0);
+  const isOnWishlist = $derived(activeWishlist[card.id] === true);
 
   // Get all available image URLs (primary + backups)
   const imageUrls = $derived(getAllCardImageUrls(card, 'en'));
@@ -29,6 +42,9 @@
   const cardName = $derived(card.names['en'] || 'Unknown');
 
   function handleClick() {
+    // Do nothing if in read-only mode
+    if (readOnly) return;
+
     if (mode === 'wishlist') {
       // Toggle wishlist
       const result = wishlist.toggle(card.id);
@@ -59,6 +75,7 @@
 
   function handleIncrement(e: Event) {
     e.stopPropagation();
+    if (readOnly) return;
     const result = collection.increment(card.id);
     if (!result.success) {
       console.warn('Max quantity reached');
@@ -67,6 +84,7 @@
 
   function handleDecrement(e: Event) {
     e.stopPropagation();
+    if (readOnly) return;
     collection.decrement(card.id);
   }
 
@@ -95,7 +113,7 @@
 <div
   role="button"
   tabindex="0"
-  class="relative group cursor-pointer transition-opacity duration-200 hover:opacity-70"
+  class="relative group transition-opacity duration-200 {readOnly ? '' : 'cursor-pointer hover:opacity-70'}"
   onclick={handleClick}
   onkeydown={(e) => e.key === 'Enter' && handleClick()}
 >
@@ -143,29 +161,37 @@
     <!-- Collection mode: Show quantity controls normally -->
     {#if hasCard}
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div class="flex items-center gap-3 animate-scale-in pointer-events-auto">
-          <button
-            type="button"
-            class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl
-                   flex items-center justify-center transition-colors shadow-xl"
-            onclick={handleDecrement}
-            aria-label="Decrease quantity"
-          >
-            −
-          </button>
+        {#if readOnly}
+          <!-- Read-only mode: show quantity without buttons -->
           <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             {quantity}
           </span>
-          <button
-            type="button"
-            class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl
-                   flex items-center justify-center transition-colors shadow-xl"
-            onclick={handleIncrement}
-            aria-label="Increase quantity"
-          >
-            +
-          </button>
-        </div>
+        {:else}
+          <!-- Interactive mode: show buttons -->
+          <div class="flex items-center gap-3 animate-scale-in pointer-events-auto">
+            <button
+              type="button"
+              class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl
+                     flex items-center justify-center transition-colors shadow-xl"
+              onclick={handleDecrement}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl
+                     flex items-center justify-center transition-colors shadow-xl"
+              onclick={handleIncrement}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
   {/if}

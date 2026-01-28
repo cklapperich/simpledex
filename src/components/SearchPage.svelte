@@ -9,6 +9,7 @@
   import ImportButton from './ImportButton.svelte';
   import WishlistExportButton from './WishlistExportButton.svelte';
   import WishlistImportButton from './WishlistImportButton.svelte';
+  import ShareButton from './ShareButton.svelte';
   import ModeToggle from './ModeToggle.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
@@ -219,9 +220,11 @@
             {#if mode === 'collection'}
               <ImportButton />
               <ExportButton />
+              <ShareButton />
             {:else}
               <WishlistImportButton />
               <WishlistExportButton />
+              <ShareButton />
             {/if}
           </div>
         </div>
