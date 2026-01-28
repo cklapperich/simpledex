@@ -14,6 +14,9 @@ const OUTPUT_DIR = path.join(__dirname, 'public');
 // Language definitions - English only
 const WESTERN_LANGUAGES = ['en'];
 
+// Build options
+const INCLUDE_MCDONALDS_PROMOS = false; // Set to true to include McDonald's promotional cards
+
 interface CardImage {
   url: string;
   source: 'tcgdex' | 'pokemontcg-io';
@@ -370,6 +373,12 @@ async function processDirectory(
         continue;
       }
 
+      // Skip McDonald's promo cards if not included (series name in tcgdex)
+      if (!INCLUDE_MCDONALDS_PROMOS && seriesName === "McDonald's Collection") {
+        skippedCards++;
+        continue;
+      }
+
       // Get series ID
       const seriesFilePath = path.join(path.dirname(cardFile), `../../${seriesName}.ts`);
       let seriesId = seriesName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -536,6 +545,11 @@ async function processDirectory(
         if (ptcgSet) {
           // Skip Pokémon TCG Pocket cards (digital-only, not physical cards)
           if (ptcgSet.series === 'Pokémon TCG Pocket') {
+            continue;
+          }
+
+          // Skip McDonald's promo cards if not included (check set name in pokemon-tcg-data)
+          if (!INCLUDE_MCDONALDS_PROMOS && ptcgSet.name.startsWith("McDonald's Collection")) {
             continue;
           }
 

@@ -9,7 +9,7 @@ const LEADING_ZEROS_IN_SET = /([a-z]+)0+(\d+)/g;
 // - sv = Shiny Vault (e.g., swsh45sv for Shining Fates Shiny Vault)
 // - rc = Radiant Collection (legacy, kept for compatibility)
 const SUBSET_SUFFIXES = /(gg|tg|rc|sv)$/;
-const LEADING_ZEROS = /^0+(\d.*)/;
+const LEADING_ZEROS = /^([A-Z]*)0+(\d+.*)$/;
 const VARIANT_UNDERSCORE = /_([A-Z])/g;
 const TRAILING_VARIANT_ONE = /([A-Z])1$/;
 
@@ -18,7 +18,8 @@ const TRAILING_VARIANT_ONE = /([A-Z])1$/;
  * Handles variations like:
  * - Dots: sm7.5 vs sm75
  * - "pt" notation: swsh12.5 vs swsh12pt5
- * - Leading zeros: sv01 vs sv1
+ * - Leading zeros in set numbers: sv01 vs sv1
+ * - Leading zeros in card numbers: 099 vs 99, H08 vs H8, SM09 vs SM9
  * - Subset suffixes: swsh125gg vs swsh125, swsh12tg -> swsh12
  * - Celebrations variants: cel25c vs cel25
  * - Variant underscores: 15_A vs 15A
@@ -49,9 +50,9 @@ export function normalizeCardId(id: string): string {
   // Examples: swsh125gg -> swsh125, swsh12tg -> swsh12, swsh45sv -> swsh45
   setId = setId.replace(SUBSET_SUFFIXES, '');
 
-  // Remove leading zeros from card number (004 -> 4, 099 -> 99)
+  // Remove leading zeros from card number (004 -> 4, 099 -> 99, H08 -> H8, SM09 -> SM9)
   // Preserves variant suffixes like _A1, _B2
-  cardNumber = cardNumber.replace(LEADING_ZEROS, '$1');
+  cardNumber = cardNumber.replace(LEADING_ZEROS, '$1$2');
 
   // Remove underscores from variant suffixes (15_A1 -> 15A1)
   cardNumber = cardNumber.replace(VARIANT_UNDERSCORE, '$1');
