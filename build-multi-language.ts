@@ -97,7 +97,8 @@ function extractAttacks(fileContent: string, primaryLang: string): Array<{
 }> | undefined {
   const attacks: Array<{ name: string; cost: string[]; damage?: string; effect?: string }> = [];
 
-  const attacksMatch = fileContent.match(/attacks:\s*\[([\s\S]*?)\]/);
+  // Match attacks array, handling nested brackets by looking for ],\n at root indentation (one tab)
+  const attacksMatch = fileContent.match(/attacks:\s*\[([\s\S]*?)\n\t\],/);
   if (!attacksMatch) return undefined;
 
   const attacksStr = attacksMatch[1];
@@ -156,7 +157,8 @@ function extractAbilities(fileContent: string, primaryLang: string): Array<{
 }> | undefined {
   const abilities: Array<{ name: string; effect: string; type: string }> = [];
 
-  const abilitiesMatch = fileContent.match(/abilities:\s*\[([\s\S]*?)\]/);
+  // Match abilities array, handling nested brackets by looking for closing bracket at root indentation
+  const abilitiesMatch = fileContent.match(/abilities:\s*\[([\s\S]*?)\n\t\]/);
   if (!abilitiesMatch) return undefined;
 
   const abilitiesStr = abilitiesMatch[1];
@@ -426,7 +428,7 @@ async function processDirectory(
       const abilities = extractAbilities(fileContent, primaryLang);
 
       // Extract weaknesses
-      const weaknessesMatch = fileContent.match(/weaknesses:\s*\[([\s\S]*?)\]/);
+      const weaknessesMatch = fileContent.match(/weaknesses:\s*\[([\s\S]*?)\n\t\],/);
       let weaknesses: Array<{ type: string; value?: string }> = [];
       if (weaknessesMatch) {
         const weaknessTypeMatch = weaknessesMatch[1].match(/type:\s*"([^"]+)"/);
@@ -440,7 +442,7 @@ async function processDirectory(
       }
 
       // Extract resistances
-      const resistancesMatch = fileContent.match(/resistances:\s*\[([\s\S]*?)\]/);
+      const resistancesMatch = fileContent.match(/resistances:\s*\[([\s\S]*?)\n\t\],/);
       let resistances: Array<{ type: string; value?: string }> = [];
       if (resistancesMatch) {
         const resistanceTypeMatch = resistancesMatch[1].match(/type:\s*"([^"]+)"/);

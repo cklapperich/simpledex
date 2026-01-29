@@ -166,18 +166,10 @@ export function matchesFilters(card: Card, activeFilters: Set<string>): boolean 
 }
 
 /**
- * Handles common set name aliases for better search experience
- * For example, users might search "base set" when the actual name is "Base"
+ * Normalizes set name queries for case-insensitive matching
  */
 export function normalizeSetName(query: string): string {
-  const queryLower = query.toLowerCase();
-
-  // Handle common set name aliases
-  if (queryLower === 'base set') {
-    return 'base';
-  }
-
-  return queryLower;
+  return query.toLowerCase();
 }
 
 /**

@@ -11,7 +11,7 @@ const LEADING_ZEROS_IN_SET = /([a-z]+)0+(\d+)/g;
 const SUBSET_SUFFIXES = /(gg|tg|rc|sv)$/;
 const LEADING_ZEROS = /^([A-Z]*)0+(\d+.*)$/;
 const VARIANT_UNDERSCORE = /_([A-Z])/g;
-const TRAILING_VARIANT_ONE = /([A-Z])1$/;
+const TRAILING_VARIANT_ONE = /(\d+[A-Z])1$/;
 
 /**
  * Normalize card ID for matching between databases
@@ -60,6 +60,7 @@ export function normalizeCardId(id: string): string {
   // Remove trailing "1" after variant letters ONLY (15A1 -> 15A)
   // This handles tcgdex duplicates where 15A and 15A1 are the same card
   // But preserves 15A2, 15A3, 15A4 as different cards
+  // Only matches patterns with digits before the letter (15A1), not standalone letters (H1)
   cardNumber = cardNumber.replace(TRAILING_VARIANT_ONE, '$1');
 
   return `${setId}-${cardNumber}`;
