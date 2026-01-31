@@ -97,7 +97,12 @@
 
   function handleCardClick(cardId: string) {
     if (currentDeck) {
-      decks.addCardToDeck(currentDeck.id, cardId);
+      const collectionQty = $collection[cardId] || 0;
+      const deckQty = currentDeck.cards[cardId] || 0;
+      const available = collectionQty - deckQty;
+      if (available > 0) {
+        decks.addCardToDeck(currentDeck.id, cardId);
+      }
     }
   }
 
@@ -197,7 +202,7 @@
 {:else}
   <div class="flex h-screen">
     <!-- Left Side: Card Browser -->
-    <div class="w-full lg:flex-1 overflow-y-auto bg-white pb-24 lg:pb-4" class:hidden={mobileView === 'deck'}>
+    <div class="w-full lg:flex-1 overflow-y-auto bg-white pb-24 lg:pb-4 {mobileView === 'deck' ? 'hidden lg:block' : ''}">
       <div class="max-w-6xl mx-auto px-4 md:px-6 py-4">
         <!-- Header -->
         <div class="mb-4">
@@ -292,10 +297,15 @@
         {:else}
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {#each displayedCards as card (card.id)}
-              <button
-                type="button"
-                class="cursor-pointer hover:opacity-70 transition-opacity"
+              {@const deckQuantity = currentDeck.cards[card.id] || 0}
+              {@const collectionQuantity = $collection[card.id] || 0}
+              {@const availableQuantity = collectionQuantity - deckQuantity}
+              <div
+                role="button"
+                tabindex="0"
+                class="relative cursor-pointer hover:opacity-70 transition-opacity"
                 onclick={() => handleCardClick(card.id)}
+                onkeydown={(e) => e.key === 'Enter' && handleCardClick(card.id)}
               >
                 <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
                   <img
@@ -305,7 +315,38 @@
                     class="w-full h-full object-cover"
                   />
                 </div>
-              </button>
+                <!-- Collection Quantity & Deck Controls Overlay -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  {#if deckQuantity > 0}
+                    <div class="flex items-center gap-3 pointer-events-auto">
+                      <button
+                        type="button"
+                        class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl"
+                        onclick={(e) => { e.stopPropagation(); handleRemoveCard(card.id); }}
+                        aria-label="Remove from deck"
+                      >
+                        −
+                      </button>
+                      <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        {availableQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl {availableQuantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                        onclick={(e) => { e.stopPropagation(); handleCardClick(card.id); }}
+                        aria-label="Add to deck"
+                        disabled={availableQuantity <= 0}
+                      >
+                        +
+                      </button>
+                    </div>
+                  {:else}
+                    <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                      {availableQuantity}
+                    </span>
+                  {/if}
+                </div>
+              </div>
             {/each}
           </div>
         {/if}
@@ -329,7 +370,7 @@
     </div>
 
     <!-- Right Side: Deck List -->
-    <div class="w-full lg:w-96 bg-gray-50 lg:border-l border-gray-300 overflow-y-auto" class:hidden={mobileView === 'browse'}>
+    <div class="w-full lg:w-96 bg-gray-50 lg:border-l border-gray-300 overflow-y-auto {mobileView === 'browse' ? 'hidden lg:block' : ''}">
       <!-- Back to Cards Button (Mobile Only) -->
       <button
         onclick={showBrowseView}
