@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { Document } from 'flexsearch';
   import type { Card } from '../types';
   import SearchBar from './SearchBar.svelte';
   import CardItem from './CardItem.svelte';
@@ -25,7 +23,6 @@
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
-  let searchIndex: Document<Card>;
   let activeFilters = $state(new SvelteSet<string>(loadFilters('deck-builder-filters')));
   let editingName = $state(false);
   let tempName = $state('');
@@ -179,45 +176,7 @@
     mobileView = 'browse';
   }
 
-  onMount(async () => {
-    try {
-      const indexResponse = await fetch('/search-index.json');
-      if (!indexResponse.ok) {
-        throw new Error('Failed to load search index');
-      }
-
-      const exportedIndex = await indexResponse.json();
-
-      searchIndex = new Document({
-        document: {
-          id: 'id',
-          index: [
-            'name',
-            'set',
-            {
-              field: 'number',
-              tokenize: 'strict',
-              resolution: 9
-            },
-            {
-              field: 'setNumber',
-              tokenize: 'strict',
-              resolution: 9
-            }
-          ]
-        },
-        tokenize: 'forward'
-      });
-
-      for (const item of exportedIndex) {
-        searchIndex.import(item.key, item.data);
-      }
-    } catch (error) {
-      console.error('Error loading search index:', error);
-    }
-  });
-
-  // Save filters to localStorage whenever they change
+// Save filters to localStorage whenever they change
   $effect(() => {
     saveFilters('deck-builder-filters', activeFilters);
   });
