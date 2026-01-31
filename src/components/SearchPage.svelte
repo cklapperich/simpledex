@@ -19,6 +19,8 @@
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber, sortCardsByReleaseDate } from '../utils/cardSorting';
   import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
+  import { parseSearchQuery, hasFilters } from '../utils/searchQueryParser';
+  import { matchesSearchFilters } from '../utils/searchFilters';
 
   interface Props {
     collectionOnly?: boolean;
@@ -44,6 +46,12 @@
   const displayedCards = $derived.by(() => {
     let cards: Card[] = [];
 
+    // Parse the search query to extract structured filters (artist:value, etc.)
+    const parsedQuery = parseSearchQuery(searchQuery);
+    const searchText = parsedQuery.text;
+    const searchFilters = parsedQuery.filters;
+    const hasSearchFilters = hasFilters(searchFilters);
+
     if (collectionOnly) {
       // Collection/Wishlist mode: start with all cards based on active mode
       const sourceData = mode === 'collection' ? $collection : $wishlist;
@@ -58,10 +66,9 @@
         }
       }
 
-      // Apply search filter if query exists
-      if (searchQuery.trim()) {
-        const query = searchQuery.trim();
-        const queryLower = normalizeSetName(query);
+      // Apply text search filter if text exists (after extracting structured filters)
+      if (searchText) {
+        const queryLower = normalizeSetName(searchText);
 
         // Filter by set name or pokemon name
         cards = cards.filter(card => {
@@ -69,19 +76,24 @@
           return (
             cardName.toLowerCase().includes(queryLower) ||
             card.set.toLowerCase().includes(queryLower) ||
-            card.setNumber.toLowerCase().includes(queryLower)
+            card.setNumber?.toLowerCase().includes(queryLower)
           );
         });
       }
     } else {
       // Search mode: regular search behavior
-      if (!searchQuery.trim()) {
-        // No search - show Base Set by default
+      const hasTextSearch = searchText.length > 0;
+
+      if (!hasTextSearch && !hasSearchFilters) {
+        // No search and no filters - show Base Set by default
         const baseSet = $filteredSetMap.get('base set');
         cards = baseSet ? [...baseSet] : $filteredCards.slice(0, 50);
+      } else if (!hasTextSearch && hasSearchFilters) {
+        // Filter-only query (e.g., "artist:ken") - search all cards
+        cards = [...$filteredCards];
       } else {
-        const query = searchQuery.trim();
-        const queryLower = normalizeSetName(query);
+        // Has text search
+        const queryLower = normalizeSetName(searchText);
 
         // Check if query matches a set name exactly (case-insensitive) using pre-built index
         const setCards = $filteredSetMap.get(queryLower);
@@ -89,7 +101,7 @@
           cards = [...setCards];
         } else {
           // Search pokemon names using FlexSearch
-          const results = searchIndex.search(query, { field: 'name' });
+          const results = searchIndex.search(searchText, { field: 'name' });
 
           // FlexSearch returns results grouped by field, flatten and lookup cards
           const cardSet = new SvelteSet<string>();
@@ -109,12 +121,17 @@
       }
     }
 
+    // Apply structured search filters (artist:, etc.)
+    if (hasSearchFilters) {
+      cards = cards.filter(card => matchesSearchFilters(card, searchFilters));
+    }
+
     // Apply modern only filter
     if (modernOnly) {
       cards = cards.filter(card => MODERN_SERIES.includes(card.series));
     }
 
-    // Apply active filters
+    // Apply active filters (type, rarity, etc. from FilterColumn)
     if (activeFilters.size > 0) {
       cards = cards.filter(card => matchesFilters(card, activeFilters));
     }

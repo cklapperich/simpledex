@@ -57,6 +57,7 @@ interface MultiLangCard {
     value?: string;
   }>;
   retreatCost?: string[];
+  illustrator?: string;
   seriesId?: string;
   setId?: string;
   images?: CardImage[];
@@ -413,6 +414,7 @@ async function processDirectory(
       const categoryMatch = fileContent.match(/category:\s*"([^"]+)"/);
       const hpMatch = fileContent.match(/hp:\s*(\d+)/);
       const stageMatch = fileContent.match(/stage:\s*"([^"]+)"/);
+      const illustratorMatch = fileContent.match(/illustrator:\s*"([^"]+)"/);
 
       // Extract types array
       const typesMatch = fileContent.match(/types:\s*\[([\s\S]*?)\]/);
@@ -479,6 +481,7 @@ async function processDirectory(
         types,
         ptcgoCode,
         rarity: rarityMatch ? rarityMatch[1] : 'Common',
+        illustrator: illustratorMatch ? illustratorMatch[1] : undefined,
         hp: hpMatch ? parseInt(hpMatch[1]) : undefined,
         attacks,
         abilities,

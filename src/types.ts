@@ -19,6 +19,7 @@ export interface Card {
   types: string[]; // Pokémon types: ["Fire"], ["Water", "Psychic"], etc.
   ptcgoCode?: string; // PTCGO set code (e.g., "TEU", "CEC", "SVE")
   rarity: string; // Card rarity (e.g., "Common", "Rare", "Ultra Rare")
+  illustrator?: string; // Card illustrator/artist name
   // NEW METADATA from TCGdex
   hp?: number; // HP for Pokémon cards
   attacks?: Attack[]; // Attacks for Pokémon cards
