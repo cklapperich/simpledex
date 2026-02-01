@@ -15,21 +15,16 @@ export interface DeckStats {
   specialEnergy: number;
 }
 
+export type DeckCardEntry = { cardId: string; quantity: number; card: Card };
+
 export interface GroupedDeckCards {
-  pokemon: {
-    basic: Array<{ cardId: string; quantity: number; card: Card }>;
-    stage1: Array<{ cardId: string; quantity: number; card: Card }>;
-    stage2: Array<{ cardId: string; quantity: number; card: Card }>;
-  };
+  pokemon: DeckCardEntry[];  // Flat list sorted by stage (Basic, Stage1, Stage2)
   trainers: {
-    supporters: Array<{ cardId: string; quantity: number; card: Card }>;
-    items: Array<{ cardId: string; quantity: number; card: Card }>;
-    tools: Array<{ cardId: string; quantity: number; card: Card }>;
+    supporters: DeckCardEntry[];
+    items: DeckCardEntry[];
+    tools: DeckCardEntry[];
   };
-  energy: {
-    basic: Array<{ cardId: string; quantity: number; card: Card }>;
-    special: Array<{ cardId: string; quantity: number; card: Card }>;
-  };
+  energy: DeckCardEntry[];  // Flat list sorted by basic first, then special
 }
 
 function getCardName(card: Card): string {
@@ -37,7 +32,7 @@ function getCardName(card: Card): string {
 }
 
 function isPokemon(card: Card): boolean {
-  return card.supertype === 'Pokémon';
+  return card.supertype === 'Pokemon' || card.supertype === 'Pokémon';
 }
 
 function isBasicPokemon(card: Card): boolean {
@@ -45,11 +40,11 @@ function isBasicPokemon(card: Card): boolean {
 }
 
 function isStage1Pokemon(card: Card): boolean {
-  return isPokemon(card) && (card.subtypes?.includes('Stage 1') ?? false);
+  return isPokemon(card) && (card.subtypes?.some(s => s === 'Stage 1' || s === 'Stage1') ?? false);
 }
 
 function isStage2Pokemon(card: Card): boolean {
-  return isPokemon(card) && (card.subtypes?.includes('Stage 2') ?? false);
+  return isPokemon(card) && (card.subtypes?.some(s => s === 'Stage 2' || s === 'Stage2') ?? false);
 }
 
 function isTrainer(card: Card): boolean {
@@ -122,11 +117,24 @@ export function calculateDeckStats(deckCards: Record<string, number>, cardMap: M
   return stats;
 }
 
+// Get evolution stage order for sorting (Basic=0, Stage1=1, Stage2=2, other=3)
+function getEvolutionOrder(card: Card): number {
+  if (isBasicPokemon(card)) return 0;
+  if (isStage1Pokemon(card)) return 1;
+  if (isStage2Pokemon(card)) return 2;
+  return 3;
+}
+
+// Get energy order for sorting (Basic=0, Special=1)
+function getEnergyOrder(card: Card): number {
+  return isBasicEnergy(card) ? 0 : 1;
+}
+
 export function groupDeckCards(deckCards: Record<string, number>, cardMap: Map<string, Card>): GroupedDeckCards {
   const groups: GroupedDeckCards = {
-    pokemon: { basic: [], stage1: [], stage2: [] },
+    pokemon: [],
     trainers: { supporters: [], items: [], tools: [] },
-    energy: { basic: [], special: [] },
+    energy: [],
   };
 
   for (const [cardId, quantity] of Object.entries(deckCards)) {
@@ -136,33 +144,40 @@ export function groupDeckCards(deckCards: Record<string, number>, cardMap: Map<s
     const entry = { cardId, quantity, card };
 
     if (isPokemon(card)) {
-      if (isBasicPokemon(card)) groups.pokemon.basic.push(entry);
-      else if (isStage1Pokemon(card)) groups.pokemon.stage1.push(entry);
-      else if (isStage2Pokemon(card)) groups.pokemon.stage2.push(entry);
-      else groups.pokemon.basic.push(entry); // Default to basic for other Pokemon types
+      groups.pokemon.push(entry);
     } else if (isTrainer(card)) {
       if (isSupporter(card)) groups.trainers.supporters.push(entry);
       else if (isItem(card)) groups.trainers.items.push(entry);
       else if (isTool(card)) groups.trainers.tools.push(entry);
       else groups.trainers.items.push(entry); // Default to items for other trainer types
     } else if (isEnergy(card)) {
-      if (isBasicEnergy(card)) groups.energy.basic.push(entry);
-      else groups.energy.special.push(entry);
+      groups.energy.push(entry);
     }
   }
 
-  // Sort each group by card name
+  // Sort Pokemon by evolution stage, then by name
+  groups.pokemon.sort((a, b) => {
+    const stageA = getEvolutionOrder(a.card);
+    const stageB = getEvolutionOrder(b.card);
+    if (stageA !== stageB) return stageA - stageB;
+    return getCardName(a.card).localeCompare(getCardName(b.card));
+  });
+
+  // Sort energy by type (basic first), then by name
+  groups.energy.sort((a, b) => {
+    const typeA = getEnergyOrder(a.card);
+    const typeB = getEnergyOrder(b.card);
+    if (typeA !== typeB) return typeA - typeB;
+    return getCardName(a.card).localeCompare(getCardName(b.card));
+  });
+
+  // Sort trainer groups by name
   const sortByName = (a: { card: Card }, b: { card: Card }) =>
     getCardName(a.card).localeCompare(getCardName(b.card));
 
-  groups.pokemon.basic.sort(sortByName);
-  groups.pokemon.stage1.sort(sortByName);
-  groups.pokemon.stage2.sort(sortByName);
   groups.trainers.supporters.sort(sortByName);
   groups.trainers.items.sort(sortByName);
   groups.trainers.tools.sort(sortByName);
-  groups.energy.basic.sort(sortByName);
-  groups.energy.special.sort(sortByName);
 
   return groups;
 }

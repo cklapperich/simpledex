@@ -27,11 +27,8 @@
 
 	const groupedCards = $derived(groupDeckCards(deckCards, $cardMap));
 
-	// Compute totals for each section and subsection
-	const pokemonBasicCount = $derived(sumQuantities(groupedCards.pokemon.basic));
-	const pokemonStage1Count = $derived(sumQuantities(groupedCards.pokemon.stage1));
-	const pokemonStage2Count = $derived(sumQuantities(groupedCards.pokemon.stage2));
-	const pokemonTotalCount = $derived(pokemonBasicCount + pokemonStage1Count + pokemonStage2Count);
+	// Compute totals for each section
+	const pokemonTotalCount = $derived(sumQuantities(groupedCards.pokemon));
 
 	const trainersSupportersCount = $derived(sumQuantities(groupedCards.trainers.supporters));
 	const trainersItemsCount = $derived(sumQuantities(groupedCards.trainers.items));
@@ -40,9 +37,7 @@
 		trainersSupportersCount + trainersItemsCount + trainersToolsCount
 	);
 
-	const energyBasicCount = $derived(sumQuantities(groupedCards.energy.basic));
-	const energySpecialCount = $derived(sumQuantities(groupedCards.energy.special));
-	const energyTotalCount = $derived(energyBasicCount + energySpecialCount);
+	const energyTotalCount = $derived(sumQuantities(groupedCards.energy));
 
 	const totalCards = $derived(pokemonTotalCount + trainersTotalCount + energyTotalCount);
 
@@ -119,21 +114,7 @@
 		<!-- Pokemon Section -->
 		{#if pokemonTotalCount > 0}
 			<CollapsibleSection title="Pokemon" count={pokemonTotalCount}>
-				{#if pokemonBasicCount > 0}
-					<CollapsibleSection title="Basic" count={pokemonBasicCount} defaultOpen={false}>
-						{@render cardList(groupedCards.pokemon.basic)}
-					</CollapsibleSection>
-				{/if}
-				{#if pokemonStage1Count > 0}
-					<CollapsibleSection title="Stage 1" count={pokemonStage1Count} defaultOpen={false}>
-						{@render cardList(groupedCards.pokemon.stage1)}
-					</CollapsibleSection>
-				{/if}
-				{#if pokemonStage2Count > 0}
-					<CollapsibleSection title="Stage 2" count={pokemonStage2Count} defaultOpen={false}>
-						{@render cardList(groupedCards.pokemon.stage2)}
-					</CollapsibleSection>
-				{/if}
+				{@render cardList(groupedCards.pokemon)}
 			</CollapsibleSection>
 		{/if}
 
@@ -161,16 +142,7 @@
 		<!-- Energy Section -->
 		{#if energyTotalCount > 0}
 			<CollapsibleSection title="Energy" count={energyTotalCount}>
-				{#if energyBasicCount > 0}
-					<CollapsibleSection title="Basic" count={energyBasicCount} defaultOpen={false}>
-						{@render cardList(groupedCards.energy.basic)}
-					</CollapsibleSection>
-				{/if}
-				{#if energySpecialCount > 0}
-					<CollapsibleSection title="Special" count={energySpecialCount} defaultOpen={false}>
-						{@render cardList(groupedCards.energy.special)}
-					</CollapsibleSection>
-				{/if}
+				{@render cardList(groupedCards.energy)}
 			</CollapsibleSection>
 		{/if}
 	{/if}
