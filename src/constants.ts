@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   WISHLIST: 'wishlist',
   DECKS: 'decks',
   LANGUAGE: 'selectedLanguage',
+  GLC_MODE: 'glcMode',
 } as const;
 
 export const DEFAULT_CARD_VARIATION = 'normal';

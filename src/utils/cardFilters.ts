@@ -150,8 +150,14 @@ export function matchesFilters(card: Card, activeFilters: Set<string>): boolean 
         break;
       }
 
-      // For Trainer subcategories (Item, Supporter, Tool)
+      // For Trainer subcategories (Item, Supporter, Tool, Stadium)
       if (card.supertype === 'Trainer' && card.subtypes.includes(filter)) {
+        matchesType = true;
+        break;
+      }
+
+      // For Energy subcategories (Special, Normal/Basic)
+      if (card.supertype === 'Energy' && card.subtypes.includes(filter)) {
         matchesType = true;
         break;
       }

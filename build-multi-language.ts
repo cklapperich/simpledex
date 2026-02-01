@@ -414,6 +414,8 @@ async function processDirectory(
       const categoryMatch = fileContent.match(/category:\s*"([^"]+)"/);
       const hpMatch = fileContent.match(/hp:\s*(\d+)/);
       const stageMatch = fileContent.match(/stage:\s*"([^"]+)"/);
+      const trainerTypeMatch = fileContent.match(/trainerType:\s*"([^"]+)"/);
+      const energyTypeMatch = fileContent.match(/energyType:\s*"([^"]+)"/);
       const illustratorMatch = fileContent.match(/illustrator:\s*"([^"]+)"/);
 
       // Extract types array
@@ -468,6 +470,22 @@ async function processDirectory(
       const cardId = `${setId}-${cardNumber}`;
       const normalizedCardId = normalizeCardId(cardId);
 
+      // Build subtypes array from stage (Pokemon), trainerType (Trainer), or energyType (Energy)
+      const subtypes: string[] = [];
+      if (stageMatch) {
+        subtypes.push(stageMatch[1]);
+      }
+      if (trainerTypeMatch) {
+        subtypes.push(trainerTypeMatch[1]);
+      }
+      if (energyTypeMatch) {
+        // Normalize "Normal" to "Basic" for energy types
+        const energyType = energyTypeMatch[1] === 'Normal' ? 'Basic' : energyTypeMatch[1];
+        if (!subtypes.includes(energyType)) {
+          subtypes.push(energyType);
+        }
+      }
+
       const card: MultiLangCard = {
         id: normalizedCardId,
         names,
@@ -477,7 +495,7 @@ async function processDirectory(
         releaseDate: releaseDate.replace(/-/g, '/'),
         series: seriesName,
         supertype: categoryMatch ? categoryMatch[1].replace('Pokémon', 'Pokemon') : 'Pokemon',
-        subtypes: stageMatch ? [stageMatch[1]] : [],
+        subtypes,
         types,
         ptcgoCode,
         rarity: rarityMatch ? rarityMatch[1] : 'Common',
@@ -492,9 +510,14 @@ async function processDirectory(
         setId
       };
 
-      // Add images array (try multiple matching strategies)
+      // Add images array and fill missing data from pokemon-tcg-data
       const ptcgCard = findPokemonTCGCard(cardId, card, pokemonTCGData);
       card.images = buildImageArray(card, ptcgCard);
+
+      // Fill in missing subtypes from pokemon-tcg-data
+      if (ptcgCard && card.subtypes.length === 0 && ptcgCard.subtypes && ptcgCard.subtypes.length > 0) {
+        card.subtypes = ptcgCard.subtypes;
+      }
 
       // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
       const existingCard = normalizedIdMap.get(normalizedCardId);

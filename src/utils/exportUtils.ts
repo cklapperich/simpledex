@@ -42,18 +42,17 @@ function escapeCSVField(field: string | number): string {
 
 /**
  * Generates PTCGO format string for a card
- * Format: [quantity] [card name] [ptcgoCode] [number]
- * Example: "1 Mimikyu TEU 112" or "3 Mimikyu TEU 112"
+ * Format: [quantity] [card name] [setName] [number]
+ * Example: "1 Mimikyu Prismatic Evolutions 112" or "3 Mimikyu Prismatic Evolutions 112"
  */
 function generatePTCGOFormat(
   card: Card,
   quantity: number,
-  ptcgoCodeMap: Map<string, string>
+  _ptcgoCodeMap: Map<string, string>
 ): string {
-  const setId = card.id.split('-')[0];
-  const ptcgoCode = ptcgoCodeMap.get(setId) || card.ptcgoCode || 'UNKNOWN';
+  const setName = card.set || 'UNKNOWN';
   const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-  return `${quantity} ${cardName} ${ptcgoCode} ${card.number}`;
+  return `${quantity} ${cardName} ${setName} ${card.number}`;
 }
 
 /**

@@ -6,11 +6,13 @@
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
   import DeckCardList from './DeckCardList.svelte';
+  import FullDeckView from './FullDeckView.svelte';
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection } from '../stores/collection';
   import { decks } from '../stores/decks';
   import { activeDeckId, activeView } from '../stores/view';
-  import { exportToPTCGO, importFromPTCGO, validateDeck } from '../utils/deckUtils';
+  import { glcMode } from '../stores/glcMode';
+  import { exportToPTCGO, importFromPTCGO, validateDeck, validateGLCAddition, validateDeckGLC } from '../utils/deckUtils';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
   import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
@@ -30,9 +32,12 @@
   let showImportModal = $state(false);
   let showFilterModal = $state(false);
   let mobileView = $state<'browse' | 'deck'>('browse');
+  let leftPanelTab = $state<'browse' | 'fullDeck'>('browse');
+  let glcWarning = $state<string | null>(null);
 
   const currentDeck = $derived($activeDeckId ? $decks[$activeDeckId] : null);
   const validation = $derived(currentDeck ? validateDeck(currentDeck, $cardMap) : { isValid: true, cardCount: 0, warnings: [] });
+  const glcValidation = $derived(currentDeck && $glcMode ? validateDeckGLC(currentDeck, $cardMap) : []);
   const totalDeckCards = $derived(currentDeck ? Object.values(currentDeck.cards).reduce((sum, qty) => sum + qty, 0) : 0);
 
   // Filter collection cards for display
@@ -101,6 +106,43 @@
       const deckQty = currentDeck.cards[cardId] || 0;
       const available = collectionQty - deckQty;
       if (available > 0) {
+        // Check GLC rules if GLC mode is enabled
+        if ($glcMode) {
+          const card = $cardMap.get(cardId);
+          if (card) {
+            const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
+            if (!glcResult.canAdd) {
+              glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
+              setTimeout(() => { glcWarning = null; }, 3000);
+              return;
+            }
+          }
+        }
+        decks.addCardToDeck(currentDeck.id, cardId);
+      }
+    }
+  }
+
+  function handleAddCard(cardId: string) {
+    // For adding cards from the deck list (e.g., in sidebar or full deck view)
+    // This doesn't check collection availability since we're adding more of what's in deck
+    if (currentDeck) {
+      const collectionQty = $collection[cardId] || 0;
+      const deckQty = currentDeck.cards[cardId] || 0;
+      const available = collectionQty - deckQty;
+      if (available > 0) {
+        // Check GLC rules if GLC mode is enabled
+        if ($glcMode) {
+          const card = $cardMap.get(cardId);
+          if (card) {
+            const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
+            if (!glcResult.canAdd) {
+              glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
+              setTimeout(() => { glcWarning = null; }, 3000);
+              return;
+            }
+          }
+        }
         decks.addCardToDeck(currentDeck.id, cardId);
       }
     }
@@ -246,109 +288,150 @@
           <p class="text-gray-600 text-sm mt-1">Click cards from your collection to add to deck</p>
         </div>
 
-        <!-- Search Bar -->
-        <div class="mb-2">
-          <SearchBar onSearch={handleSearch} />
-
-          <div class="mt-1">
-            <label class="inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                bind:checked={modernOnly}
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span class="ml-2 text-sm text-gray-700">Modern Only (Black & White onwards)</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Filters -->
-        <!-- Mobile: Filter button -->
-        <div class="lg:hidden mb-2">
+        <!-- Tab Buttons -->
+        <div class="flex gap-2 mb-4">
           <button
-            onclick={() => showFilterModal = true}
-            class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg flex items-center justify-between text-gray-700 font-medium"
+            onclick={() => leftPanelTab = 'browse'}
+            class="px-4 py-2 rounded-lg font-medium transition-colors {leftPanelTab === 'browse' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
           >
-            <span>Filters</span>
-            {#if activeFilters.size > 0}
-              <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{activeFilters.size}</span>
-            {/if}
+            Browse Cards
+          </button>
+          <button
+            onclick={() => leftPanelTab = 'fullDeck'}
+            class="px-4 py-2 rounded-lg font-medium transition-colors {leftPanelTab === 'fullDeck' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+          >
+            Full Deck View
           </button>
         </div>
 
-        <!-- Desktop: Filter Column -->
-        <div class="hidden lg:block mb-2">
-          <FilterColumn activeFilters={activeFilters} onToggle={handleFilterToggle} />
-        </div>
-
-        <div class="border-t border-gray-300 mb-4"></div>
-
-        <!-- Cards Grid -->
-        {#if $cardsLoading}
-          <div class="flex items-center justify-center py-20">
-            <div class="text-gray-600">Loading cards...</div>
+        <!-- GLC Warning Toast -->
+        {#if glcWarning}
+          <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {glcWarning}
           </div>
-        {:else if displayedCards.length === 0}
-          <div class="flex flex-col items-center justify-center py-20">
-            <div class="text-gray-400 text-6xl mb-4">🔍</div>
-            <h2 class="text-2xl font-semibold text-gray-900 mb-2">No cards found</h2>
-            <p class="text-gray-600">Try adjusting your search or add cards to your collection</p>
+        {/if}
+
+        {#if leftPanelTab === 'browse'}
+          <!-- Search Bar -->
+          <div class="mb-2">
+            <SearchBar onSearch={handleSearch} />
+
+            <div class="mt-2 flex flex-wrap gap-4">
+              <label class="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  bind:checked={modernOnly}
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span class="ml-2 text-sm text-gray-700">Modern Only (Black & White onwards)</span>
+              </label>
+              <label class="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={$glcMode}
+                  onchange={() => glcMode.toggle()}
+                  class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                />
+                <span class="ml-2 text-sm text-gray-700">GLC Mode (1 copy per card name)</span>
+              </label>
+            </div>
           </div>
-        {:else}
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {#each displayedCards as card (card.id)}
-              {@const deckQuantity = currentDeck.cards[card.id] || 0}
-              {@const collectionQuantity = $collection[card.id] || 0}
-              {@const availableQuantity = collectionQuantity - deckQuantity}
-              <div
-                role="button"
-                tabindex="0"
-                class="relative cursor-pointer hover:opacity-70 transition-opacity"
-                onclick={() => handleCardClick(card.id)}
-                onkeydown={(e) => e.key === 'Enter' && handleCardClick(card.id)}
-              >
-                <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
-                  <img
-                    src={getCardImageUrl(card, 'en')}
-                    alt={getCardName(card)}
-                    loading="lazy"
-                    class="w-full h-full object-cover"
-                  />
-                </div>
-                <!-- Collection Quantity & Deck Controls Overlay -->
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {#if deckQuantity > 0}
-                    <div class="flex items-center gap-3 pointer-events-auto">
-                      <button
-                        type="button"
-                        class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl"
-                        onclick={(e) => { e.stopPropagation(); handleRemoveCard(card.id); }}
-                        aria-label="Remove from deck"
-                      >
-                        −
-                      </button>
+
+          <!-- Filters -->
+          <!-- Mobile: Filter button -->
+          <div class="lg:hidden mb-2">
+            <button
+              onclick={() => showFilterModal = true}
+              class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg flex items-center justify-between text-gray-700 font-medium"
+            >
+              <span>Filters</span>
+              {#if activeFilters.size > 0}
+                <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{activeFilters.size}</span>
+              {/if}
+            </button>
+          </div>
+
+          <!-- Desktop: Filter Column -->
+          <div class="hidden lg:block mb-2">
+            <FilterColumn activeFilters={activeFilters} onToggle={handleFilterToggle} />
+          </div>
+
+          <div class="border-t border-gray-300 mb-4"></div>
+
+          <!-- Cards Grid -->
+          {#if $cardsLoading}
+            <div class="flex items-center justify-center py-20">
+              <div class="text-gray-600">Loading cards...</div>
+            </div>
+          {:else if displayedCards.length === 0}
+            <div class="flex flex-col items-center justify-center py-20">
+              <div class="text-gray-400 text-6xl mb-4">🔍</div>
+              <h2 class="text-2xl font-semibold text-gray-900 mb-2">No cards found</h2>
+              <p class="text-gray-600">Try adjusting your search or add cards to your collection</p>
+            </div>
+          {:else}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {#each displayedCards as card (card.id)}
+                {@const deckQuantity = currentDeck.cards[card.id] || 0}
+                {@const collectionQuantity = $collection[card.id] || 0}
+                {@const availableQuantity = collectionQuantity - deckQuantity}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="relative cursor-pointer hover:opacity-70 transition-opacity"
+                  onclick={() => handleCardClick(card.id)}
+                  onkeydown={(e) => e.key === 'Enter' && handleCardClick(card.id)}
+                >
+                  <div class="aspect-[2.5/3.5] rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200">
+                    <img
+                      src={getCardImageUrl(card, 'en')}
+                      alt={getCardName(card)}
+                      loading="lazy"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <!-- Collection Quantity & Deck Controls Overlay -->
+                  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {#if deckQuantity > 0}
+                      <div class="flex items-center gap-3 pointer-events-auto">
+                        <button
+                          type="button"
+                          class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl"
+                          onclick={(e) => { e.stopPropagation(); handleRemoveCard(card.id); }}
+                          aria-label="Remove from deck"
+                        >
+                          −
+                        </button>
+                        <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                          {availableQuantity}
+                        </span>
+                        <button
+                          type="button"
+                          class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl {availableQuantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                          onclick={(e) => { e.stopPropagation(); handleCardClick(card.id); }}
+                          aria-label="Add to deck"
+                          disabled={availableQuantity <= 0}
+                        >
+                          +
+                        </button>
+                      </div>
+                    {:else}
                       <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                         {availableQuantity}
                       </span>
-                      <button
-                        type="button"
-                        class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl {availableQuantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
-                        onclick={(e) => { e.stopPropagation(); handleCardClick(card.id); }}
-                        aria-label="Add to deck"
-                        disabled={availableQuantity <= 0}
-                      >
-                        +
-                      </button>
-                    </div>
-                  {:else}
-                    <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                      {availableQuantity}
-                    </span>
-                  {/if}
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            {/each}
-          </div>
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <!-- Full Deck View -->
+          <FullDeckView
+            deckCards={currentDeck.cards}
+            onAddCard={handleAddCard}
+            onRemoveCard={handleRemoveCard}
+          />
         {/if}
       </div>
 
@@ -389,12 +472,35 @@
           <div class="text-sm text-gray-600">cards in deck</div>
         </div>
 
+        <!-- GLC Mode Toggle -->
+        <div class="mb-4">
+          <label class="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={$glcMode}
+              onchange={() => glcMode.toggle()}
+              class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+            />
+            <span class="ml-2 text-sm text-gray-700">GLC Mode</span>
+          </label>
+        </div>
+
         <!-- Validation Warnings -->
         {#if validation.warnings.length > 0}
           <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <div class="text-sm font-semibold text-yellow-800 mb-1">Warnings:</div>
             {#each validation.warnings as warning, index (index)}
               <div class="text-xs text-yellow-700">• {warning}</div>
+            {/each}
+          </div>
+        {/if}
+
+        <!-- GLC Validation Warnings -->
+        {#if $glcMode && glcValidation.length > 0}
+          <div class="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div class="text-sm font-semibold text-purple-800 mb-1">GLC Violations:</div>
+            {#each glcValidation as violation, index (index)}
+              <div class="text-xs text-purple-700">• {violation}</div>
             {/each}
           </div>
         {/if}
@@ -418,7 +524,7 @@
         <div class="border-t border-gray-300 mb-4"></div>
 
         <!-- Deck Card List -->
-        <DeckCardList deckCards={currentDeck.cards} onRemoveCard={handleRemoveCard} />
+        <DeckCardList deckCards={currentDeck.cards} onRemoveCard={handleRemoveCard} onAddCard={handleAddCard} />
       </div>
     </div>
   </div>

@@ -1,71 +1,177 @@
 <script lang="ts">
-  import type { Card } from '../types';
-  import { sortDeckCards } from '../utils/deckUtils';
-  import { cardMap } from '../stores/cards';
-  import { getCardImageUrl } from '../utils/cardImage';
+	import type { Card } from '../types';
+	import { cardMap } from '../stores/cards';
+	import { getCardImageUrl } from '../utils/cardImage';
+	import { groupDeckCards } from '../utils/deckStats';
+	import CollapsibleSection from './CollapsibleSection.svelte';
 
-  // Helper to get card name
-  function getCardName(card: Card): string {
-    return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-  }
+	// Helper to get card name
+	function getCardName(card: Card): string {
+		return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
+	}
 
-  let {
-    deckCards,
-    onRemoveCard
-  }: {
-    deckCards: Record<string, number>;
-    onRemoveCard: (cardId: string) => void;
-  } = $props();
+	// Helper to sum quantities in an array
+	function sumQuantities(cards: Array<{ quantity: number }>): number {
+		return cards.reduce((sum, c) => sum + c.quantity, 0);
+	}
 
-  const sortedCards = $derived(sortDeckCards(deckCards, $cardMap));
+	let {
+		deckCards,
+		onRemoveCard,
+		onAddCard
+	}: {
+		deckCards: Record<string, number>;
+		onRemoveCard: (cardId: string) => void;
+		onAddCard?: (cardId: string) => void;
+	} = $props();
 
-  function handleRemove(cardId: string) {
-    onRemoveCard(cardId);
-  }
+	const groupedCards = $derived(groupDeckCards(deckCards, $cardMap));
+
+	// Compute totals for each section and subsection
+	const pokemonBasicCount = $derived(sumQuantities(groupedCards.pokemon.basic));
+	const pokemonStage1Count = $derived(sumQuantities(groupedCards.pokemon.stage1));
+	const pokemonStage2Count = $derived(sumQuantities(groupedCards.pokemon.stage2));
+	const pokemonTotalCount = $derived(pokemonBasicCount + pokemonStage1Count + pokemonStage2Count);
+
+	const trainersSupportersCount = $derived(sumQuantities(groupedCards.trainers.supporters));
+	const trainersItemsCount = $derived(sumQuantities(groupedCards.trainers.items));
+	const trainersToolsCount = $derived(sumQuantities(groupedCards.trainers.tools));
+	const trainersTotalCount = $derived(
+		trainersSupportersCount + trainersItemsCount + trainersToolsCount
+	);
+
+	const energyBasicCount = $derived(sumQuantities(groupedCards.energy.basic));
+	const energySpecialCount = $derived(sumQuantities(groupedCards.energy.special));
+	const energyTotalCount = $derived(energyBasicCount + energySpecialCount);
+
+	const totalCards = $derived(pokemonTotalCount + trainersTotalCount + energyTotalCount);
+
+	function handleRemove(cardId: string) {
+		onRemoveCard(cardId);
+	}
+
+	function handleAdd(cardId: string) {
+		onAddCard?.(cardId);
+	}
 </script>
 
-<div class="space-y-1">
-  {#each sortedCards as { cardId, quantity, card } (cardId)}
-    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg group">
-      <!-- Card Image (small thumbnail) -->
-      <div class="w-16 h-22 flex-shrink-0">
-        <img
-          src={getCardImageUrl(card, 'en')}
-          alt={getCardName(card)}
-          loading="lazy"
-          class="w-full h-full object-cover rounded border border-gray-200"
-        />
-      </div>
+{#snippet cardRow(cardId: string, quantity: number, card: Card)}
+	<div class="group flex items-center gap-3 rounded-lg p-2 hover:bg-gray-50">
+		<!-- Card Image (small thumbnail) -->
+		<div class="h-22 w-16 flex-shrink-0">
+			<img
+				src={getCardImageUrl(card, 'en')}
+				alt={getCardName(card)}
+				loading="lazy"
+				class="h-full w-full rounded border border-gray-200 object-cover"
+			/>
+		</div>
 
-      <!-- Card Info -->
-      <div class="flex-1 min-w-0">
-        <div class="font-medium text-sm truncate">{getCardName(card)}</div>
-        <div class="text-xs text-gray-500">{card.set} {card.number}</div>
-        <div class="text-xs text-gray-400">{card.supertype}</div>
-      </div>
+		<!-- Card Info -->
+		<div class="min-w-0 flex-1">
+			<div class="truncate text-sm font-medium">{getCardName(card)}</div>
+			<div class="text-xs text-gray-500">{card.set} {card.number}</div>
+			<div class="text-xs text-gray-400">{card.supertype}</div>
+		</div>
 
-      <!-- Quantity Controls -->
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          class="w-7 h-7 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-bold
-                 flex items-center justify-center transition-colors"
-          onclick={() => handleRemove(cardId)}
-          aria-label="Remove one"
-        >
-          −
-        </button>
-        <span class="w-8 text-center font-bold text-lg">
-          {quantity}
-        </span>
-        <div class="w-7"></div> <!-- Spacer for alignment -->
-      </div>
-    </div>
-  {/each}
+		<!-- Quantity Controls -->
+		<div class="flex flex-shrink-0 items-center gap-2">
+			<button
+				type="button"
+				class="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-sm font-bold text-white transition-colors hover:bg-red-600"
+				onclick={() => handleRemove(cardId)}
+				aria-label="Remove one"
+			>
+				-
+			</button>
+			<span class="w-8 text-center text-lg font-bold">
+				{quantity}
+			</span>
+			{#if onAddCard}
+				<button
+					type="button"
+					class="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white transition-colors hover:bg-green-600"
+					onclick={() => handleAdd(cardId)}
+					aria-label="Add one"
+				>
+					+
+				</button>
+			{:else}
+				<div class="w-7"></div>
+				<!-- Spacer for alignment -->
+			{/if}
+		</div>
+	</div>
+{/snippet}
 
-  {#if sortedCards.length === 0}
-    <div class="text-center text-gray-400 py-8">
-      No cards in deck
-    </div>
-  {/if}
+{#snippet cardList(cards: Array<{ cardId: string; quantity: number; card: Card }>)}
+	<div class="space-y-1">
+		{#each cards as { cardId, quantity, card } (cardId)}
+			{@render cardRow(cardId, quantity, card)}
+		{/each}
+	</div>
+{/snippet}
+
+<div class="space-y-2">
+	{#if totalCards === 0}
+		<div class="py-8 text-center text-gray-400">No cards in deck</div>
+	{:else}
+		<!-- Pokemon Section -->
+		{#if pokemonTotalCount > 0}
+			<CollapsibleSection title="Pokemon" count={pokemonTotalCount}>
+				{#if pokemonBasicCount > 0}
+					<CollapsibleSection title="Basic" count={pokemonBasicCount} defaultOpen={false}>
+						{@render cardList(groupedCards.pokemon.basic)}
+					</CollapsibleSection>
+				{/if}
+				{#if pokemonStage1Count > 0}
+					<CollapsibleSection title="Stage 1" count={pokemonStage1Count} defaultOpen={false}>
+						{@render cardList(groupedCards.pokemon.stage1)}
+					</CollapsibleSection>
+				{/if}
+				{#if pokemonStage2Count > 0}
+					<CollapsibleSection title="Stage 2" count={pokemonStage2Count} defaultOpen={false}>
+						{@render cardList(groupedCards.pokemon.stage2)}
+					</CollapsibleSection>
+				{/if}
+			</CollapsibleSection>
+		{/if}
+
+		<!-- Trainers Section -->
+		{#if trainersTotalCount > 0}
+			<CollapsibleSection title="Trainers" count={trainersTotalCount}>
+				{#if trainersSupportersCount > 0}
+					<CollapsibleSection title="Supporters" count={trainersSupportersCount} defaultOpen={false}>
+						{@render cardList(groupedCards.trainers.supporters)}
+					</CollapsibleSection>
+				{/if}
+				{#if trainersItemsCount > 0}
+					<CollapsibleSection title="Items" count={trainersItemsCount} defaultOpen={false}>
+						{@render cardList(groupedCards.trainers.items)}
+					</CollapsibleSection>
+				{/if}
+				{#if trainersToolsCount > 0}
+					<CollapsibleSection title="Tools" count={trainersToolsCount} defaultOpen={false}>
+						{@render cardList(groupedCards.trainers.tools)}
+					</CollapsibleSection>
+				{/if}
+			</CollapsibleSection>
+		{/if}
+
+		<!-- Energy Section -->
+		{#if energyTotalCount > 0}
+			<CollapsibleSection title="Energy" count={energyTotalCount}>
+				{#if energyBasicCount > 0}
+					<CollapsibleSection title="Basic" count={energyBasicCount} defaultOpen={false}>
+						{@render cardList(groupedCards.energy.basic)}
+					</CollapsibleSection>
+				{/if}
+				{#if energySpecialCount > 0}
+					<CollapsibleSection title="Special" count={energySpecialCount} defaultOpen={false}>
+						{@render cardList(groupedCards.energy.special)}
+					</CollapsibleSection>
+				{/if}
+			</CollapsibleSection>
+		{/if}
+	{/if}
 </div>
