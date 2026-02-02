@@ -70,6 +70,15 @@ export interface PokemonTCGSet {
   };
 }
 
+// Hardcoded PTCGO codes for sets missing them in the source data
+const PTCGO_CODE_FALLBACKS: Record<string, string> = {
+  'Southern Islands': 'SI',
+};
+
+function getPtcgoCodeFallback(setName: string): string | undefined {
+  return PTCGO_CODE_FALLBACKS[setName];
+}
+
 // Build script card interface (same as in build-multi-language.ts)
 interface MultiLangCard {
   id: string;
@@ -202,7 +211,7 @@ export function convertPokemonTCGCard(ptcgCard: PokemonTCGCard, ptcgSet: Pokemon
     supertype: ptcgCard.supertype.replace('Pokémon', 'Pokemon'), // Normalize accent
     subtypes: ptcgCard.subtypes || [],
     types: ptcgCard.types || [],
-    ptcgoCode: ptcgSet.ptcgoCode,
+    ptcgoCode: ptcgSet.ptcgoCode || getPtcgoCodeFallback(ptcgSet.name),
     rarity: ptcgCard.rarity || 'Common',
     hp: ptcgCard.hp ? parseInt(ptcgCard.hp) : undefined,
     attacks: ptcgCard.attacks?.map(attack => ({

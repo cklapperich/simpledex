@@ -14,6 +14,15 @@ const OUTPUT_DIR = path.join(__dirname, 'public');
 // Language definitions - English only
 const WESTERN_LANGUAGES = ['en'];
 
+// Hardcoded PTCGO codes for sets missing them in the source data
+const PTCGO_CODE_FALLBACKS: Record<string, string> = {
+  'Southern Islands': 'SI',
+};
+
+function getPtcgoCodeFallback(setName: string): string | undefined {
+  return PTCGO_CODE_FALLBACKS[setName];
+}
+
 // Build options
 const INCLUDE_MCDONALDS_PROMOS = false; // Set to true to include McDonald's promotional cards
 
@@ -409,6 +418,11 @@ async function processDirectory(
         if (setIdMatch) setId = setIdMatch[1];
         if (releaseDateMatch) releaseDate = releaseDateMatch[1];
         if (tcgOnlineMatch) ptcgoCode = tcgOnlineMatch[1];
+      }
+
+      // Apply fallback for sets missing PTCGO codes
+      if (!ptcgoCode) {
+        ptcgoCode = getPtcgoCodeFallback(setName) || '';
       }
 
       // Extract other card properties

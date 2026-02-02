@@ -15,6 +15,7 @@ export interface SearchFilters {
   text?: FilterValue[];   // Game mechanic text (attacks, abilities, rules)
   flavor?: FilterValue[]; // Pokedex flavor text
   has?: FilterValue[];    // Property checks (e.g., has:rule_box)
+  set?: FilterValue[];    // Set name or PTCGO code (e.g., set:BS, set:"Base Set")
 }
 
 export interface ParsedSearchQuery {
@@ -35,6 +36,8 @@ const FILTER_ALIASES: Record<string, keyof SearchFilters> = {
   flavor: 'flavor',
   flavortext: 'flavor',  // alias
   has: 'has',
+  set: 'set',
+  expansion: 'set',  // alias
 };
 
 /**

@@ -121,5 +121,18 @@ export function matchesSearchFilters(card: Card, filters: SearchFilters): boolea
     if (!matches) return false;
   }
 
+  // Check set filter (set name or PTCGO code)
+  if (filters.set && filters.set.length > 0) {
+    const cardSet = card.set.toLowerCase();
+    const cardCode = card.ptcgoCode?.toLowerCase() || '';
+
+    const matches = checkFilter(filters.set, (searchTerm) => {
+      const termLower = searchTerm.toLowerCase();
+      // Match against PTCGO code (exact) or set name (contains)
+      return cardCode === termLower || cardSet.includes(termLower);
+    });
+    if (!matches) return false;
+  }
+
   return true;
 }

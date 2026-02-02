@@ -10,8 +10,7 @@
   import WishlistExportButton from './WishlistExportButton.svelte';
   import WishlistImportButton from './WishlistImportButton.svelte';
   import ShareButton from './ShareButton.svelte';
-  import ModeToggle from './ModeToggle.svelte';
-  import FilterColumn from './FilterColumn.svelte';
+    import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
   import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection, totalCards } from '../stores/collection';
@@ -22,16 +21,26 @@
   import { parseSearchQuery, hasFilters } from '../utils/searchQueryParser';
   import { matchesSearchFilters } from '../utils/searchFilters';
 
-  interface Props {
-    collectionOnly?: boolean;
-  }
+  // Page mode: 'add' = search cards to add to collection, 'search' = search within your collection
+  let pageMode = $state<'add' | 'search'>('add');
 
-  let { collectionOnly = false }: Props = $props();
+  // Derive collectionOnly from pageMode
+  const collectionOnly = $derived(pageMode === 'search');
 
   // Determine localStorage key for filters (reactive to collectionOnly changes)
   const filterKey = $derived(collectionOnly ? 'collection-filters' : 'search-filters');
 
+  // Default search to demonstrate filter syntax (only for main search, not collection)
+  const DEFAULT_SEARCH = 'rotom';
   let searchQuery = $state('');
+
+  // Reset search query when switching modes
+  $effect(() => {
+    // Track collectionOnly to trigger reset on mode change
+    const _ = collectionOnly;
+    // Always reset to empty - the default search behavior is handled in displayedCards
+    searchQuery = '';
+  });
   let modernOnly = $state(false);
   let indexReady = $state(false);
   let searchIndex: Document<Card>;
@@ -46,8 +55,11 @@
   const displayedCards = $derived.by(() => {
     let cards: Card[] = [];
 
+    // Use DEFAULT_SEARCH when search bar is empty and not in collection mode
+    const effectiveQuery = (!collectionOnly && searchQuery === '') ? DEFAULT_SEARCH : searchQuery;
+
     // Parse the search query to extract structured filters (artist:value, etc.)
-    const parsedQuery = parseSearchQuery(searchQuery);
+    const parsedQuery = parseSearchQuery(effectiveQuery);
     const searchText = parsedQuery.text;
     const searchFilters = parsedQuery.filters;
     const hasSearchFilters = hasFilters(searchFilters);
@@ -203,9 +215,50 @@
 
 <div class="min-h-screen bg-white">
   <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-    <!-- Mode Toggle (always visible) -->
-    <div class="mb-4">
-      <ModeToggle bind:mode />
+    <!-- Page Mode Selector and Mode Toggle -->
+    <div class="mb-4 flex flex-wrap gap-4 items-center">
+      <!-- Page Mode Selector (Add vs Search Collection) -->
+      <div class="inline-flex rounded-lg bg-gray-100 p-1">
+        <button
+          class="px-4 py-2 rounded-md transition-colors flex items-center gap-2"
+          class:bg-white={pageMode === 'add'}
+          class:shadow={pageMode === 'add'}
+          onclick={() => pageMode = 'add'}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          Add to your collection
+        </button>
+        <button
+          class="px-4 py-2 rounded-md transition-colors flex items-center gap-2"
+          class:bg-white={pageMode === 'search'}
+          class:shadow={pageMode === 'search'}
+          onclick={() => pageMode = 'search'}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          Search your collection
+        </button>
+      </div>
+
+      <!-- Wishlist Mode Toggle - always visible -->
+      <button
+        class="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+        class:bg-yellow-100={mode === 'wishlist'}
+        class:text-yellow-800={mode === 'wishlist'}
+        class:bg-gray-100={mode === 'collection'}
+        class:text-gray-700={mode === 'collection'}
+        class:hover:bg-yellow-200={mode === 'wishlist'}
+        class:hover:bg-gray-200={mode === 'collection'}
+        onclick={() => mode = mode === 'collection' ? 'wishlist' : 'collection'}
+      >
+        <svg class="w-4 h-4" fill={mode === 'wishlist' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+        </svg>
+        Wishlist Mode
+      </button>
     </div>
 
     {#if collectionOnly}
@@ -250,7 +303,7 @@
 
     <!-- Search Bar -->
     <div class="mb-1">
-      <SearchBar onSearch={handleSearch} />
+      <SearchBar onSearch={handleSearch} initialValue={searchQuery} />
     </div>
 
     <!-- Loading state -->
@@ -276,7 +329,7 @@
           {mode === 'collection' ? 'No cards in collection yet' : 'No cards on wishlist yet'}
         </h2>
         <p class="text-gray-600">
-          {mode === 'collection' ? 'Go to Search to add cards to your collection' : 'Go to Search to add cards to your wishlist'}
+          {mode === 'collection' ? 'Switch to "Add to your collection" to add cards' : 'Switch to "Add to your collection" to add cards to your wishlist'}
         </p>
       </div>
     {:else}

@@ -1,8 +1,26 @@
 <script lang="ts">
-  let { onSearch }: { onSearch: (query: string) => void } = $props();
+  import { onMount } from 'svelte';
 
-  let inputValue = $state('');
+  let { onSearch, initialValue = '' }: { onSearch: (query: string) => void; initialValue?: string } = $props();
+
+  let inputValue = $state(initialValue);
   let inputElement = $state<HTMLInputElement>();
+  let lastInitialValue = $state(initialValue);
+
+  // React to initialValue changes from parent
+  $effect(() => {
+    if (initialValue !== lastInitialValue) {
+      inputValue = initialValue;
+      lastInitialValue = initialValue;
+      onSearch(initialValue);
+    }
+  });
+
+  onMount(() => {
+    if (initialValue) {
+      onSearch(initialValue);
+    }
+  });
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
@@ -23,7 +41,7 @@
     bind:value={inputValue}
     onkeydown={handleKeyDown}
     type="text"
-    placeholder="Search by name or set..."
+    placeholder="rotom set:BS -has:rule_box artist:arita type:electric text:damage flavor:pokemon"
     aria-label="Search cards"
     class="w-full px-6 py-4 text-lg rounded-xl border-2 border-gray-200
            focus:border-teal-600 focus:ring-2 focus:ring-teal-600 focus:outline-none
