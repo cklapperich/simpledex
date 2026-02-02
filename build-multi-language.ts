@@ -57,6 +57,8 @@ interface MultiLangCard {
     value?: string;
   }>;
   retreatCost?: string[];
+  flavorText?: string;  // Pokedex flavor text for Pokemon
+  rules?: string[];     // Trainer/Energy effect text
   illustrator?: string;
   seriesId?: string;
   setId?: string;

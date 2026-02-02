@@ -3,17 +3,16 @@ import type { Card } from '../types';
 /**
  * Checks if a card has a rule box
  * Rule box cards include:
- * - Pokemon: V, VMAX, VSTAR, GX, EX, ex, MEGA, BREAK, TAG TEAM, LV.X, LEGEND
- * - Trainers: ACE SPEC cards
+ * - Pokemon: V, VMAX, VSTAR, GX, EX, ex, MEGA, BREAK, TAG TEAM, LV.X, LEGEND, Radiant, Prism Star
+ * - Trainers: ACE SPEC cards, Prism Star
  *
- * Explicitly EXCLUDED (not rulebox per user):
- * - Radiant Pokemon
+ * Explicitly EXCLUDED (not rulebox):
  * - Ancient Trait Pokemon
  * - Prime Pokemon
  */
-function hasRulebox(card: Card): boolean {
-  // Check ACE SPEC trainers first (user requirement: filter these out)
-  if (card.rarity === 'ACE SPEC Rare') {
+export function hasRulebox(card: Card): boolean {
+  // Check ACE SPEC and Prism Star first (can be any supertype)
+  if (card.rarity === 'ACE SPEC Rare' || card.rarity === 'Prism Rare') {
     return true;
   }
 
@@ -43,8 +42,8 @@ function hasRulebox(card: Card): boolean {
       return true;
     }
 
-    // Check special rarities (Radiant and Prime removed per user request)
-    const ruleboxRarities = ['Rare Holo LV.X', 'LEGEND'];
+    // Check special rarities
+    const ruleboxRarities = ['Rare Holo LV.X', 'LEGEND', 'Radiant Rare'];
     if (ruleboxRarities.includes(card.rarity)) {
       return true;
     }

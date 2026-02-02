@@ -37,6 +37,8 @@ export interface PokemonTCGCard {
   }>;
   retreatCost?: string[];
   convertedRetreatCost?: number;
+  flavorText?: string;  // Pokedex flavor text for Pokemon
+  rules?: string[];     // Trainer/Energy effect text
   set: {
     id: string;
     name: string;
@@ -103,6 +105,8 @@ interface MultiLangCard {
     value?: string;
   }>;
   retreatCost?: string[];
+  flavorText?: string;  // Pokedex flavor text for Pokemon
+  rules?: string[];     // Trainer/Energy effect text
   seriesId?: string;
   setId?: string;
 }
@@ -221,6 +225,8 @@ export function convertPokemonTCGCard(ptcgCard: PokemonTCGCard, ptcgSet: Pokemon
       value: r.value
     })),
     retreatCost: ptcgCard.retreatCost,
+    flavorText: ptcgCard.flavorText,
+    rules: ptcgCard.rules,
     seriesId: undefined, // No tcgdex ID mapping available
     setId: undefined
   };

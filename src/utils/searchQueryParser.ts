@@ -1,11 +1,20 @@
 /**
  * Search query parser for structured filter syntax
  * Supports queries like: "artist:sowsow pikachu" or "artist:"Ken Sugimori" charizard"
+ * Also supports negation with "-" prefix: "-type:fire" excludes fire types
  */
 
+export interface FilterValue {
+  value: string;
+  negated: boolean;
+}
+
 export interface SearchFilters {
-  artist?: string[]; // artist:value or illustrator:value
-  // Future filters: set?, type?, series?, hp?, text?, rarity?
+  artist?: FilterValue[]; // artist:value or illustrator:value
+  type?: FilterValue[];   // Pokemon types OR trainer subtypes
+  text?: FilterValue[];   // Game mechanic text (attacks, abilities, rules)
+  flavor?: FilterValue[]; // Pokedex flavor text
+  has?: FilterValue[];    // Property checks (e.g., has:rule_box)
 }
 
 export interface ParsedSearchQuery {
@@ -13,14 +22,19 @@ export interface ParsedSearchQuery {
   filters: SearchFilters; // Extracted filter values
 }
 
-// Regex to match filter:value or filter:"quoted value"
-// Captures: group 1 = filter name, group 2 = quoted value, group 3 = unquoted value
-const FILTER_REGEX = /(\w+):(?:"([^"]+)"|(\S+))/g;
+// Regex to match filter:value or filter:"quoted value" with optional "-" prefix for negation
+// Captures: group 1 = optional "-", group 2 = filter name, group 3 = quoted value, group 4 = unquoted value
+const FILTER_REGEX = /(-?)(\w+):(?:"([^"]+)"|(\S+))/g;
 
 // Alias mapping for filter names
 const FILTER_ALIASES: Record<string, keyof SearchFilters> = {
   artist: 'artist',
   illustrator: 'artist',
+  type: 'type',
+  text: 'text',
+  flavor: 'flavor',
+  flavortext: 'flavor',  // alias
+  has: 'has',
 };
 
 /**
@@ -37,16 +51,17 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
   const matchesToRemove: string[] = [];
 
   while ((match = FILTER_REGEX.exec(query)) !== null) {
-    const [fullMatch, filterName, quotedValue, unquotedValue] = match;
+    const [fullMatch, negation, filterName, quotedValue, unquotedValue] = match;
     const value = quotedValue || unquotedValue;
     const normalizedFilter = FILTER_ALIASES[filterName.toLowerCase()];
+    const isNegated = negation === '-';
 
     if (normalizedFilter && value) {
       // Initialize array if needed
       if (!filters[normalizedFilter]) {
         filters[normalizedFilter] = [];
       }
-      filters[normalizedFilter]!.push(value);
+      filters[normalizedFilter]!.push({ value, negated: isNegated });
       matchesToRemove.push(fullMatch);
     }
   }

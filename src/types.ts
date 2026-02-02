@@ -27,6 +27,8 @@ export interface Card {
   weaknesses?: Weakness[]; // Weaknesses for Pokémon cards
   resistances?: Resistance[]; // Resistances for Pokémon cards
   retreatCost?: string[]; // Retreat cost (energy types)
+  flavorText?: string;   // Pokedex entry text
+  rules?: string[];      // Trainer/Energy effect text
   // TCGdex metadata for dynamic URLs (image constructed at runtime)
   seriesId?: string; // TCGdex series ID for constructing image URLs
   setId?: string; // TCGdex set ID for constructing image URLs
