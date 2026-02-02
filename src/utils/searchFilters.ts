@@ -6,6 +6,7 @@
 import type { Card } from '../types';
 import type { SearchFilters, FilterValue } from './searchQueryParser';
 import { hasRulebox } from './cardFilters';
+import { isKnownCode } from './setCodes';
 
 /**
  * Build a text blob of all game mechanic text (attacks, abilities, rules)
@@ -128,8 +129,17 @@ export function matchesSearchFilters(card: Card, filters: SearchFilters): boolea
 
     const matches = checkFilter(filters.set, (searchTerm) => {
       const termLower = searchTerm.toLowerCase();
-      // Match against PTCGO code (exact) or set name (contains)
-      return cardCode === termLower || cardSet.includes(termLower);
+
+      // If search term is a known PTCGO code, ONLY match by exact code
+      // This prevents "BS" from matching "Obsidian Flames" via set name
+      if (isKnownCode(searchTerm)) {
+        return cardCode === termLower;
+      }
+
+      // Not a known code - match by normalized set name (contains)
+      // Normalize: lowercase, replace & with and, remove spaces
+      const normalize = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '');
+      return normalize(card.set).includes(normalize(searchTerm));
     });
     if (!matches) return false;
   }

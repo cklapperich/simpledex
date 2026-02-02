@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import type { Card } from '../types';
+import { loadSetCodes } from '../utils/setCodes';
 
 function createCardsStore() {
   const allCards = writable<Card[]>([]);
@@ -44,7 +45,11 @@ function createCardsStore() {
     if (!hasInitialLoad) {
       console.log('Initializing cards store');
       try {
-        const cards = await loadCards();
+        // Load cards and set codes in parallel
+        const [cards] = await Promise.all([
+          loadCards(),
+          loadSetCodes()
+        ]);
         allCards.set(cards);
         hasInitialLoad = true;
       } catch (err) {

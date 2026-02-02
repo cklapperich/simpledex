@@ -17,6 +17,7 @@ const WESTERN_LANGUAGES = ['en'];
 // Hardcoded PTCGO codes for sets missing them in the source data
 const PTCGO_CODE_FALLBACKS: Record<string, string> = {
   'Southern Islands': 'SI',
+  'SWSH Black Star Promos': 'PR-SW',
 };
 
 function getPtcgoCodeFallback(setName: string): string | undefined {
@@ -413,11 +414,14 @@ async function processDirectory(
         const setContent = fs.readFileSync(setFilePath, 'utf-8');
         const setIdMatch = setContent.match(/id:\s*"([^"]+)"/);
         const releaseDateMatch = setContent.match(/releaseDate:\s*"([^"]+)"/);
+        // Try tcgOnline first (older sets), then abbreviations.official (newer sets like SV)
         const tcgOnlineMatch = setContent.match(/tcgOnline:\s*"([^"]+)"/);
+        const abbreviationsMatch = setContent.match(/abbreviations:\s*{[^}]*official:\s*"([^"]+)"/);
 
         if (setIdMatch) setId = setIdMatch[1];
         if (releaseDateMatch) releaseDate = releaseDateMatch[1];
         if (tcgOnlineMatch) ptcgoCode = tcgOnlineMatch[1];
+        else if (abbreviationsMatch) ptcgoCode = abbreviationsMatch[1];
       }
 
       // Apply fallback for sets missing PTCGO codes
@@ -663,6 +667,39 @@ async function buildMultiLanguageData() {
   console.log(`   Cards with only pokemon-tcg-data: ${cardsWithOnlyPTCG}`);
   console.log(`   Cards with only tcgdex: ${cardsWithOnlyTCGdex}`);
   console.log(`   Cards with no images: ${cardsWithNoImages}`);
+
+  // Generate set codes JSON for runtime use and debugging
+  const setCodeMap = new Map<string, { code: string; count: number; series: string }>();
+  for (const card of westernCards) {
+    const key = card.set;
+    if (!setCodeMap.has(key)) {
+      setCodeMap.set(key, { code: card.ptcgoCode || '', count: 0, series: card.series });
+    }
+    setCodeMap.get(key)!.count++;
+  }
+
+  // Build JSON structure: { codeToSet: { "BS": "Base Set", ... }, setToCode: { "Base Set": "BS", ... } }
+  const codeToSet: Record<string, string> = {};
+  const setToCode: Record<string, string> = {};
+  let setsWithCode = 0;
+  let setsWithoutCode = 0;
+
+  for (const [setName, info] of setCodeMap.entries()) {
+    if (info.code) {
+      codeToSet[info.code.toUpperCase()] = setName;
+      setToCode[setName] = info.code.toUpperCase();
+      setsWithCode++;
+    } else {
+      setsWithoutCode++;
+    }
+  }
+
+  const setCodesJson = { codeToSet, setToCode };
+  const setCodesFile = path.join(OUTPUT_DIR, 'set-codes.json');
+  fs.writeFileSync(setCodesFile, JSON.stringify(setCodesJson, null, 2), 'utf-8');
+  console.log(`\n📋 Set Codes: ${setCodesFile}`);
+  console.log(`   Sets with code: ${setsWithCode}`);
+  console.log(`   Sets missing code: ${setsWithoutCode}`);
 
   console.log('\n✅ Build complete!');
   console.log(`   Total cards: ${westernCards.length}`);
