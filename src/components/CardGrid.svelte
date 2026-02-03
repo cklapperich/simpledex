@@ -4,11 +4,9 @@
 
   interface Props {
     cards: Card[];
-    collection?: Record<string, number>;
-    wishlist?: Record<string, boolean>;
   }
 
-  let { cards, collection, wishlist }: Props = $props();
+  let { cards }: Props = $props();
 </script>
 
 {#if cards.length === 0}
@@ -25,7 +23,7 @@
 {:else}
   <div class="grid grid-cols-2 landscape:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
     {#each cards as card (card.id)}
-      <CardItem {card} {collection} {wishlist} />
+      <CardItem {card} />
     {/each}
   </div>
 {/if}

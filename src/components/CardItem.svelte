@@ -10,11 +10,9 @@
 
   interface Props {
     card: Card;
-    collection?: Record<string, number>;
-    wishlist?: Record<string, boolean>;
   }
 
-  let { card, collection: propCollection, wishlist: propWishlist }: Props = $props();
+  let { card }: Props = $props();
 
   // Get mode from context (defaults to 'collection' if not provided)
   const modeContext = getContext<(() => 'collection' | 'wishlist') | undefined>('mode');
@@ -23,9 +21,13 @@
   // Get readOnly flag from context
   const readOnly = getContext<boolean>('readOnly') || false;
 
-  // Use props if in read-only mode, otherwise use stores
-  const activeCollection = $derived(propCollection || $collection);
-  const activeWishlist = $derived(propWishlist || $wishlist);
+  // Get shared collection/wishlist from context (for read-only shared profile view)
+  const sharedCollectionContext = getContext<(() => Record<string, number>) | undefined>('sharedCollection');
+  const sharedWishlistContext = getContext<(() => Record<string, boolean>) | undefined>('sharedWishlist');
+
+  // Use context data if in read-only mode, otherwise use stores
+  const activeCollection = $derived(sharedCollectionContext ? sharedCollectionContext() : $collection);
+  const activeWishlist = $derived(sharedWishlistContext ? sharedWishlistContext() : $wishlist);
 
   // Reactive quantity check
   const hasCard = $derived(activeCollection[card.id] > 0);

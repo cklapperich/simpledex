@@ -9,7 +9,8 @@
     "build:local": "npm run build:cards && vite build",
     "preview": "vite preview",
     "migrate:dry-run": "tsx migrate-card-ids.ts",
-    "migrate:execute": "tsx migrate-card-ids.ts --execute"
+    "migrate:execute": "tsx migrate-card-ids.ts --execute",
+    "count": "git ls-files '*.ts' '*.svelte' '*.sql' '*.html' | xargs wc -l"
   },
   "keywords": [],
   "author": "",
