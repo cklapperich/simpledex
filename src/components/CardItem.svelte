@@ -6,6 +6,7 @@
   import { toast } from 'svelte-sonner';
   import { Star } from 'lucide-svelte';
   import { getAllCardImageUrls } from '../utils/cardImage';
+  import { getCardName } from '../utils/cardUtils';
 
   interface Props {
     card: Card;
@@ -39,7 +40,7 @@
   const imageUrl = $derived(imageUrls[currentImageIndex] || '');
 
   // Get card name
-  const cardName = $derived(card.names['en'] || 'Unknown');
+  const cardName = $derived(getCardName(card));
 
   function handleClick() {
     // Do nothing if in read-only mode

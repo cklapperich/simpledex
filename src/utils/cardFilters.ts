@@ -101,6 +101,20 @@ function isExpandedLegal(card: Card): boolean {
  * - Format filters (NoRulebox, ExpandedLegal) use AND logic (match all)
  * - Combined: (match any type/category) AND (match all formats)
  */
+/**
+ * Normalizes set name queries for fuzzy matching
+ * Removes spaces, "&", "and" so variations all match:
+ * "scarlet and violet" / "scarlet & violet" / "scarlet violet" → "scarletviolet"
+ * "black and white" / "black & white" → "blackwhite"
+ */
+export function normalizeSetName(query: string): string {
+  return query
+    .toLowerCase()
+    .replace(/\s+and\s+/g, '')  // " and " → ""
+    .replace(/\s*&\s*/g, '')     // " & " or "&" → ""
+    .replace(/\s+/g, '');        // remaining spaces → ""
+}
+
 export function matchesFilters(card: Card, activeFilters: Set<string>): boolean {
   if (activeFilters.size === 0) return true;
 
@@ -168,13 +182,6 @@ export function matchesFilters(card: Card, activeFilters: Set<string>): boolean 
   }
 
   return true;
-}
-
-/**
- * Normalizes set name queries for case-insensitive matching
- */
-export function normalizeSetName(query: string): string {
-  return query.toLowerCase();
 }
 
 /**

@@ -5,6 +5,7 @@
   import { cardMap } from '../stores/cards';
   import { calculateDeckStats, groupDeckCards, type DeckCardEntry } from '../utils/deckStats';
   import { getCardImageUrl } from '../utils/cardImage';
+  import { getCardName } from '../utils/cardUtils';
 
   interface Props {
     deckCards: Record<string, number>;
@@ -13,11 +14,6 @@
   }
 
   const { deckCards, onAddCard, onRemoveCard }: Props = $props();
-
-  // Helper to get card name
-  function getCardName(card: Card): string {
-    return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-  }
 
   // Calculate stats and grouped cards
   const stats = $derived(calculateDeckStats(deckCards, $cardMap));

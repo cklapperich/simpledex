@@ -5,7 +5,7 @@
 
 import type { Card } from '../types';
 import type { SearchFilters, FilterValue } from './searchQueryParser';
-import { hasRulebox } from './cardFilters';
+import { hasRulebox, normalizeSetName } from './cardFilters';
 import { isKnownCode } from './setCodes';
 
 /**
@@ -137,9 +137,8 @@ export function matchesSearchFilters(card: Card, filters: SearchFilters): boolea
       }
 
       // Not a known code - match by normalized set name (contains)
-      // Normalize: lowercase, replace & with and, remove spaces
-      const normalize = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '');
-      return normalize(card.set).includes(normalize(searchTerm));
+      // Normalizes variations: "scarlet & violet", "scarlet and violet", "scarlet violet" → "scarletviolet"
+      return normalizeSetName(card.set).includes(normalizeSetName(searchTerm));
     });
     if (!matches) return false;
   }

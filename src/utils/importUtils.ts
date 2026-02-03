@@ -1,55 +1,5 @@
+import Papa from 'papaparse';
 import type { Collection, Card, ImportResult, ImportError } from '../types';
-
-/**
- * Parses a CSV field, handling quoted values with commas and escaped quotes
- */
-function parseCSVField(field: string): string {
-  field = field.trim();
-
-  // If field is quoted, remove quotes and unescape internal quotes
-  if (field.startsWith('"') && field.endsWith('"')) {
-    return field.slice(1, -1).replace(/""/g, '"');
-  }
-
-  return field;
-}
-
-/**
- * Parses a CSV row into fields, handling quoted values properly
- */
-function parseCSVRow(row: string): string[] {
-  const fields: string[] = [];
-  let currentField = '';
-  let insideQuotes = false;
-
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i];
-    const nextChar = row[i + 1];
-
-    if (char === '"') {
-      if (insideQuotes && nextChar === '"') {
-        // Escaped quote
-        currentField += '"';
-        i++; // Skip next quote
-      } else {
-        // Toggle quote state
-        insideQuotes = !insideQuotes;
-        currentField += char;
-      }
-    } else if (char === ',' && !insideQuotes) {
-      // Field separator
-      fields.push(parseCSVField(currentField));
-      currentField = '';
-    } else {
-      currentField += char;
-    }
-  }
-
-  // Add last field
-  fields.push(parseCSVField(currentField));
-
-  return fields;
-}
 
 /**
  * Parses CSV content and returns a Collection object
@@ -60,9 +10,12 @@ export function parseCSV(csvContent: string): {
   collection?: Collection;
   result?: ImportResult;
 } {
-  const lines = csvContent.split('\n').filter(line => line.trim());
+  const parsed = Papa.parse<Record<string, string>>(csvContent, {
+    header: true,
+    skipEmptyLines: true
+  });
 
-  if (lines.length === 0) {
+  if (parsed.data.length === 0) {
     return {
       result: {
         success: false,
@@ -73,12 +26,9 @@ export function parseCSV(csvContent: string): {
     };
   }
 
-  // Parse and validate headers - find required columns by name
-  const headers = parseCSVRow(lines[0]);
-  const cardIdIndex = headers.findIndex(h => h === 'Card ID');
-  const quantityIndex = headers.findIndex(h => h === 'Quantity');
-
-  if (cardIdIndex === -1 || quantityIndex === -1) {
+  // Check for required columns
+  const headers = parsed.meta.fields || [];
+  if (!headers.includes('Card ID') || !headers.includes('Quantity')) {
     return {
       result: {
         success: false,
@@ -95,16 +45,18 @@ export function parseCSV(csvContent: string): {
   const detailedErrors: ImportError[] = [];
   let skipped = 0;
 
-  for (let i = 1; i < lines.length; i++) {
-    const row = parseCSVRow(lines[i]);
+  for (let i = 0; i < parsed.data.length; i++) {
+    const row = parsed.data[i];
+    const lineNum = i + 2; // +2 for 1-based index and header row
 
-    // Check if row has enough columns
-    const maxIndex = Math.max(cardIdIndex, quantityIndex);
-    if (row.length <= maxIndex) {
-      const errorMsg = `Line ${i + 1}: Missing required columns`;
+    const cardId = row['Card ID'];
+    const quantityStr = row['Quantity'];
+
+    if (!cardId || !quantityStr) {
+      const errorMsg = `Line ${lineNum}: Missing required columns`;
       errors.push(errorMsg);
       detailedErrors.push({
-        line: i + 1,
+        line: lineNum,
         message: errorMsg,
         type: 'parsing'
       });
@@ -112,16 +64,13 @@ export function parseCSV(csvContent: string): {
       continue;
     }
 
-    const cardId = row[cardIdIndex];
-    const quantityStr = row[quantityIndex];
-
     // Validate quantity
     const quantity = parseInt(quantityStr);
     if (isNaN(quantity) || quantity < 1 || quantity > 99) {
       const errorMsg = `Invalid quantity "${quantityStr}" (must be 1-99)`;
-      errors.push(`Line ${i + 1}: ${errorMsg}`);
+      errors.push(`Line ${lineNum}: ${errorMsg}`);
       detailedErrors.push({
-        line: i + 1,
+        line: lineNum,
         cardId,
         message: errorMsg,
         type: 'quantity'
@@ -136,7 +85,7 @@ export function parseCSV(csvContent: string): {
 
   const imported = Object.keys(collection).length;
 
-  if (imported === 0 && lines.length > 1) {
+  if (imported === 0 && parsed.data.length > 0) {
     return {
       result: {
         success: false,
@@ -195,19 +144,3 @@ export function validateImport(
   };
 }
 
-/**
- * Build reverse map for exports: setId → ptcgoCode
- * Used for generating PTCGO reference column in CSV exports
- */
-export function buildSetToPTCGOMap(cardMap: Map<string, Card>): Map<string, string> {
-  const map = new Map<string, string>();
-
-  for (const card of cardMap.values()) {
-    if (card.ptcgoCode) {
-      const setId = card.id.split('-')[0];
-      map.set(setId, card.ptcgoCode);
-    }
-  }
-
-  return map;
-}

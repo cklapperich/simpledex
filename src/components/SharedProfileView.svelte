@@ -8,12 +8,13 @@
   import ModeToggle from './ModeToggle.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
-  import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
+  import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { isAuthenticated } from '../stores/auth';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
-  import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
+  import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { resolveShareCode, loadUserCollection, loadUserWishlist } from '../utils/shareUtils';
+  import { getCardName } from '../utils/cardUtils';
   import { activeView } from '../stores/view';
 
   interface Props {
@@ -56,7 +57,7 @@
     // Build initial card list from source data
     for (const cardId in sourceData) {
       if (mode === 'collection' ? sourceData[cardId] > 0 : sourceData[cardId]) {
-        const card = $filteredCardMap.get(cardId);
+        const card = $cardMap.get(cardId);
         if (card) {
           cards.push(card);
         }
@@ -65,13 +66,11 @@
 
     // Apply search filter if query exists
     if (searchQuery.trim()) {
-      const query = searchQuery.trim();
-      const queryLower = normalizeSetName(query);
+      const queryLower = searchQuery.trim().toLowerCase();
 
       cards = cards.filter(card => {
-        const cardName = card.names['en'] || '';
         return (
-          cardName.toLowerCase().includes(queryLower) ||
+          getCardName(card).toLowerCase().includes(queryLower) ||
           card.set.toLowerCase().includes(queryLower) ||
           card.setNumber.toLowerCase().includes(queryLower)
         );
@@ -153,7 +152,7 @@
 
   // Build search index
   $effect(() => {
-    if (!$cardsLoading && $filteredCards.length > 0) {
+    if (!$cardsLoading && $allCards.length > 0) {
       searchIndex = new Document({
         document: {
           id: 'id',
@@ -162,10 +161,10 @@
         tokenize: 'forward'
       });
 
-      for (const card of $filteredCards) {
+      for (const card of $allCards) {
         const searchableCard = {
           id: card.id,
-          name: card.names['en'] || ''
+          name: getCardName(card)
         };
         searchIndex.add(searchableCard);
       }

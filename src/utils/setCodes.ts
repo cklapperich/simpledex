@@ -36,19 +36,3 @@ export function isKnownCode(code: string): boolean {
   if (!setCodesData) return false;
   return code.toUpperCase() in setCodesData.codeToSet;
 }
-
-/**
- * Get set name for a PTCGO code
- */
-export function getSetForCode(code: string): string | undefined {
-  if (!setCodesData) return undefined;
-  return setCodesData.codeToSet[code.toUpperCase()];
-}
-
-/**
- * Get all known codes as a Set (for efficient lookup)
- */
-export function getKnownCodes(): Set<string> {
-  if (!setCodesData) return new Set();
-  return new Set(Object.keys(setCodesData.codeToSet).map(c => c.toLowerCase()));
-}

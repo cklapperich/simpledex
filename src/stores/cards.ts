@@ -102,44 +102,5 @@ export const setMap = cards.setMap;
 export const isLoading = cards.isLoading;
 export const cardsError = cards.error;
 
-/**
- * Filtered cards - currently just returns all cards (no filtering needed for single language)
- */
-export const filteredCards = derived(
-  [allCards],
-  ([$allCards]) => {
-    return $allCards;
-  }
-);
-
-/**
- * Filtered card map - cardMap but only for cards available in selected language
- */
-export const filteredCardMap = derived(filteredCards, $cards => {
-  const map = new Map<string, Card>();
-  for (const card of $cards) {
-    if (!card || !card.id) continue;
-    map.set(card.id, card);
-  }
-  return map;
-});
-
-/**
- * Filtered set map - setMap but only for cards available in selected language
- */
-export const filteredSetMap = derived(filteredCards, $cards => {
-  const map = new Map<string, Card[]>();
-  for (const card of $cards) {
-    if (!card || !card.set) continue;
-
-    const key = card.set.toLowerCase();
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-    map.get(key)!.push(card);
-  }
-  return map;
-});
-
 // Initialize the store
 cards.init();

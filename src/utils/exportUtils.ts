@@ -1,6 +1,7 @@
+import Papa from 'papaparse';
 import type { Collection, Card, EnrichedCard } from '../types';
-import { buildSetToPTCGOMap } from './importUtils';
 import { sortCardsBySetAndNumber } from './cardSorting';
+import { getCardName } from './cardUtils';
 
 /**
  * Enriches collection data with full card details from cardMap
@@ -29,36 +30,18 @@ export function enrichCollectionData(
 }
 
 /**
- * Escapes a CSV field by wrapping in quotes and escaping internal quotes
- */
-function escapeCSVField(field: string | number): string {
-  const str = String(field);
-  // If field contains comma, quote, or newline, wrap in quotes and escape quotes
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-/**
  * Generates PTCGO format string for a card
  * Format: [quantity] [card name] [setName] [number]
  * Example: "1 Mimikyu Prismatic Evolutions 112" or "3 Mimikyu Prismatic Evolutions 112"
  */
-function generatePTCGOFormat(
-  card: Card,
-  quantity: number,
-  _ptcgoCodeMap: Map<string, string>
-): string {
+function generatePTCGOFormat(card: Card, quantity: number): string {
   const setName = card.set || 'UNKNOWN';
-  const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-  return `${quantity} ${cardName} ${setName} ${card.number}`;
+  return `${quantity} ${getCardName(card)} ${setName} ${card.number}`;
 }
 
 /**
- * Generates CSV export with proper escaping
+ * Generates CSV export using papaparse
  * Format: Card ID, Card Name, Set, Number, Quantity, PTCGO
- * PTCGO column includes quantity matching the Quantity field
  */
 export function generateCSV(
   collection: Collection,
@@ -66,29 +49,16 @@ export function generateCSV(
 ): string {
   const enrichedCards = enrichCollectionData(collection, cardMap);
 
-  // Build PTCGO code map for exports
-  const ptcgoCodeMap = buildSetToPTCGOMap(cardMap);
+  const data = enrichedCards.map(card => ({
+    'Card ID': card.id,
+    'Card Name': getCardName(card),
+    'Set': card.set,
+    'Number': card.number,
+    'Quantity': card.quantity,
+    'PTCGO': generatePTCGOFormat(card, card.quantity)
+  }));
 
-  // CSV header
-  const headers = ['Card ID', 'Card Name', 'Set', 'Number', 'Quantity', 'PTCGO'];
-  const rows = [headers.join(',')];
-
-  // Add data rows
-  for (const card of enrichedCards) {
-    const ptcgoFormat = generatePTCGOFormat(card, card.quantity, ptcgoCodeMap);
-    const cardName = card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-    const row = [
-      escapeCSVField(card.id),
-      escapeCSVField(cardName),
-      escapeCSVField(card.set),
-      escapeCSVField(card.number),
-      escapeCSVField(card.quantity),
-      escapeCSVField(ptcgoFormat)
-    ];
-    rows.push(row.join(','));
-  }
-
-  return rows.join('\n');
+  return Papa.unparse(data);
 }
 
 /**

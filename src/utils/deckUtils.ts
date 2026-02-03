@@ -1,5 +1,6 @@
 import type { Card, Deck, DeckValidation } from '../types';
 import { MODERN_SERIES } from '../constants';
+import { getCardName } from './cardUtils';
 
 /**
  * Export deck to PTCGO format
@@ -17,7 +18,7 @@ export function exportToPTCGO(deck: Deck, cards: Map<string, Card>): string {
     }
 
     const setName = card.set;  // Always use full set name
-    const line = `* ${quantity} ${(card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown')} ${setName} ${card.number}`;
+    const line = `* ${quantity} ${getCardName(card)} ${setName} ${card.number}`;
     lines.push(line);
   }
 
@@ -41,7 +42,7 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
   // Build lookup by name|set|number
   const cardsByNameSetNumber = new Map<string, Card>();
   for (const card of cards.values()) {
-    const name = (card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown').toLowerCase();
+    const name = getCardName(card).toLowerCase();
     const set = (card.set || '').toLowerCase();
     const key = `${name}|${set}|${card.number}`;
     cardsByNameSetNumber.set(key, card);
@@ -119,7 +120,7 @@ export function validateDeck(deck: Deck, cards: Map<string, Card>): DeckValidati
     const isBasicEnergy = card.supertype === 'Energy' && card.subtypes?.includes('Basic');
 
     if (!isBasicEnergy && quantity > 4) {
-      warnings.push(`${(card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown')}: ${quantity} copies (max 4 allowed)`);
+      warnings.push(`${getCardName(card)}: ${quantity} copies (max 4 allowed)`);
     }
   }
 
@@ -158,20 +159,14 @@ export function sortDeckCards(deckCards: Record<string, number>, cards: Map<stri
       return orderA - orderB;
     }
 
-    const nameA = a.card.names['en'] || a.card.names[Object.keys(a.card.names)[0]] || 'Unknown';
-    const nameB = b.card.names['en'] || b.card.names[Object.keys(b.card.names)[0]] || 'Unknown';
+    const nameA = getCardName(a.card);
+    const nameB = getCardName(b.card);
     return nameA.localeCompare(nameB);
   });
 
   return cardsWithData;
 }
 
-/**
- * Get the card name for GLC validation
- */
-function getCardNameForGLC(card: Card): string {
-  return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-}
 
 /**
  * GLC validation result
@@ -205,13 +200,13 @@ export function validateGLCAddition(
   }
 
   // Rule 2: 1 copy per NAME (not per ID)
-  const cardName = getCardNameForGLC(cardToAdd);
+  const cardName = getCardName(cardToAdd);
   for (const [existingId, qty] of Object.entries(deckCards)) {
     if (qty <= 0) continue;
     const existingCard = cardMap.get(existingId);
     if (!existingCard) continue;
 
-    const existingName = getCardNameForGLC(existingCard);
+    const existingName = getCardName(existingCard);
     if (existingName === cardName) {
       return { canAdd: false, reason: `Already have ${cardName} in deck (GLC allows only 1 copy per card name)` };
     }
@@ -235,8 +230,8 @@ export function validateDeckGLC(deck: Deck, cardMap: Map<string, Card>): string[
 
     // Check modern series
     if (!MODERN_SERIES.includes(card.series)) {
-      const cardName = getCardNameForGLC(card);
-      violations.push(`${cardName} is not from a modern series`);
+      const name = getCardName(card);
+      violations.push(`${name} is not from a modern series`);
     }
 
     // Skip basic energy for name counting
@@ -244,7 +239,7 @@ export function validateDeckGLC(deck: Deck, cardMap: Map<string, Card>): string[
     if (isBasicEnergy) continue;
 
     // Count card names
-    const cardName = getCardNameForGLC(card);
+    const cardName = getCardName(card);
     const existing = cardNameCounts.get(cardName) || { count: 0, cards: [] };
     existing.count += quantity;
     existing.cards.push(`${card.set} ${card.number}`);
