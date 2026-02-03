@@ -10,27 +10,9 @@ import {
 
 export { type SyncResult }
 
-export const loadFromSupabase = loadWishlistFromSupabase
-
-export async function saveToSupabase(
-  userId: string,
-  cardId: string
-): Promise<SyncResult> {
-  return saveWishlistToSupabase(userId, cardId)
-}
-
-export const deleteFromSupabase = deleteWishlistFromSupabase
-
-export async function mergeWishlists(
-  userId: string,
-  localWishlist: Wishlist
-): Promise<SyncResult> {
-  return mergeWishlistData(userId, localWishlist)
-}
-
-export async function syncFullWishlist(
-  userId: string,
-  wishlist: Wishlist
-): Promise<SyncResult> {
-  return syncFullWishlistData(userId, wishlist)
-}
+// Re-export with original names for backwards compatibility
+export { loadWishlistFromSupabase as loadFromSupabase }
+export { saveWishlistToSupabase as saveToSupabase }
+export { deleteWishlistFromSupabase as deleteFromSupabase }
+export { mergeWishlistData as mergeWishlists }
+export { syncFullWishlistData as syncFullWishlist }

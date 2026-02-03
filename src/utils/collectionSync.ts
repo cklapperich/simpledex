@@ -10,28 +10,9 @@ import {
 
 export { type SyncResult }
 
-export const loadFromSupabase = loadCollectionFromSupabase
-
-export async function saveToSupabase(
-  userId: string,
-  cardId: string,
-  quantity: number
-): Promise<SyncResult> {
-  return saveCollectionToSupabase(userId, cardId, quantity)
-}
-
-export const deleteFromSupabase = deleteCollectionFromSupabase
-
-export async function mergeCollections(
-  userId: string,
-  localCollection: Collection
-): Promise<SyncResult> {
-  return mergeCollectionData(userId, localCollection)
-}
-
-export async function syncFullCollection(
-  userId: string,
-  collection: Collection
-): Promise<SyncResult> {
-  return syncFullCollectionData(userId, collection)
-}
+// Re-export with original names for backwards compatibility
+export { loadCollectionFromSupabase as loadFromSupabase }
+export { saveCollectionToSupabase as saveToSupabase }
+export { deleteCollectionFromSupabase as deleteFromSupabase }
+export { mergeCollectionData as mergeCollections }
+export { syncFullCollectionData as syncFullCollection }
