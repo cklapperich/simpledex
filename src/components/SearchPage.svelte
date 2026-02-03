@@ -17,9 +17,10 @@
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber, sortCardsByReleaseDate } from '../utils/cardSorting';
-  import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
+  import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { parseSearchQuery, hasFilters } from '../utils/searchQueryParser';
   import { matchesSearchFilters } from '../utils/searchFilters';
+  import { getCardName } from '../utils/cardUtils';
 
   // Page mode: 'add' = search cards to add to collection, 'search' = search within your collection
   let pageMode = $state<'add' | 'search'>('add');
@@ -80,13 +81,12 @@
 
       // Apply text search filter if text exists (after extracting structured filters)
       if (searchText) {
-        const queryLower = normalizeSetName(searchText);
+        const queryLower = searchText.toLowerCase();
 
         // Filter by set name or pokemon name
         cards = cards.filter(card => {
-          const cardName = card.names['en'] || '';
           return (
-            cardName.toLowerCase().includes(queryLower) ||
+            getCardName(card).toLowerCase().includes(queryLower) ||
             card.set.toLowerCase().includes(queryLower) ||
             card.setNumber?.toLowerCase().includes(queryLower)
           );
@@ -105,7 +105,7 @@
         cards = [...$filteredCards];
       } else {
         // Has text search
-        const queryLower = normalizeSetName(searchText);
+        const queryLower = searchText.toLowerCase();
 
         // Check if query matches a set name exactly (case-insensitive) using pre-built index
         const setCards = $filteredSetMap.get(queryLower);
@@ -193,7 +193,7 @@
       for (const card of $filteredCards) {
         const searchableCard = {
           id: card.id,
-          name: card.names['en'] || ''
+          name: getCardName(card)
         };
         searchIndex.add(searchableCard);
       }

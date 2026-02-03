@@ -1,4 +1,5 @@
 import type { Card } from '../types';
+import { getCardName } from './cardUtils';
 
 export interface DeckStats {
   total: number;
@@ -25,10 +26,6 @@ export interface GroupedDeckCards {
     tools: DeckCardEntry[];
   };
   energy: DeckCardEntry[];  // Flat list sorted by basic first, then special
-}
-
-function getCardName(card: Card): string {
-  return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
 }
 
 function isPokemon(card: Card): boolean {

@@ -1,16 +1,10 @@
 <script lang="ts">
+  import Papa from 'papaparse';
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { cardMap } from '../stores/cards';
   import { downloadFile } from '../utils/exportUtils';
+  import { getCardName } from '../utils/cardUtils';
   import type { Card } from '../types';
-
-  function escapeCSVField(field: string | number): string {
-    const str = String(field);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  }
 
   function generateWishlistCSV(): string {
     const wishlistCards: Card[] = [];
@@ -31,22 +25,14 @@
       return a.number.localeCompare(b.number);
     });
 
-    // CSV header
-    const headers = ['Card ID', 'Card Name', 'Set', 'Number'];
-    const rows = [headers.join(',')];
+    const data = wishlistCards.map(card => ({
+      'Card ID': card.id,
+      'Card Name': getCardName(card),
+      'Set': card.set,
+      'Number': card.number
+    }));
 
-    // Add data rows
-    for (const card of wishlistCards) {
-      const row = [
-        escapeCSVField(card.id),
-        escapeCSVField(card.name),
-        escapeCSVField(card.set),
-        escapeCSVField(card.number)
-      ];
-      rows.push(row.join(','));
-    }
-
-    return rows.join('\n');
+    return Papa.unparse(data);
   }
 
   function handleExport() {

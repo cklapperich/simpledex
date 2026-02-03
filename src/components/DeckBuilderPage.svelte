@@ -15,13 +15,9 @@
   import { exportToPTCGO, importFromPTCGO, validateDeck, validateGLCAddition, validateDeckGLC } from '../utils/deckUtils';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
-  import { matchesFilters, normalizeSetName, saveFilters, loadFilters } from '../utils/cardFilters';
+  import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { getCardImageUrl } from '../utils/cardImage';
-
-  // Helper to get card name
-  function getCardName(card: Card): string {
-    return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-  }
+  import { getCardName } from '../utils/cardUtils';
 
   let searchQuery = $state('');
   let modernOnly = $state(false);
@@ -57,8 +53,7 @@
 
     // Apply search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.trim();
-      const queryLower = normalizeSetName(query);
+      const queryLower = searchQuery.trim().toLowerCase();
 
       cards = cards.filter(card => {
         const cardName = getCardName(card).toLowerCase();

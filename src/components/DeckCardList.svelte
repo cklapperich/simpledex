@@ -3,12 +3,8 @@
 	import { cardMap } from '../stores/cards';
 	import { getCardImageUrl } from '../utils/cardImage';
 	import { groupDeckCards } from '../utils/deckStats';
+	import { getCardName } from '../utils/cardUtils';
 	import CollapsibleSection from './CollapsibleSection.svelte';
-
-	// Helper to get card name
-	function getCardName(card: Card): string {
-		return card.names['en'] || card.names[Object.keys(card.names)[0]] || 'Unknown';
-	}
 
 	// Helper to sum quantities in an array
 	function sumQuantities(cards: Array<{ quantity: number }>): number {

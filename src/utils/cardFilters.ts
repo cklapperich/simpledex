@@ -171,13 +171,6 @@ export function matchesFilters(card: Card, activeFilters: Set<string>): boolean 
 }
 
 /**
- * Normalizes set name queries for case-insensitive matching
- */
-export function normalizeSetName(query: string): string {
-  return query.toLowerCase();
-}
-
-/**
  * Save filters to localStorage
  */
 export function saveFilters(filterKey: string, filters: Set<string>): void {
