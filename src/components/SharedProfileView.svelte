@@ -8,7 +8,7 @@
   import ModeToggle from './ModeToggle.svelte';
   import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
-  import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
+  import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { isAuthenticated } from '../stores/auth';
   import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
@@ -57,7 +57,7 @@
     // Build initial card list from source data
     for (const cardId in sourceData) {
       if (mode === 'collection' ? sourceData[cardId] > 0 : sourceData[cardId]) {
-        const card = $filteredCardMap.get(cardId);
+        const card = $cardMap.get(cardId);
         if (card) {
           cards.push(card);
         }
@@ -152,7 +152,7 @@
 
   // Build search index
   $effect(() => {
-    if (!$cardsLoading && $filteredCards.length > 0) {
+    if (!$cardsLoading && $allCards.length > 0) {
       searchIndex = new Document({
         document: {
           id: 'id',
@@ -161,7 +161,7 @@
         tokenize: 'forward'
       });
 
-      for (const card of $filteredCards) {
+      for (const card of $allCards) {
         const searchableCard = {
           id: card.id,
           name: getCardName(card)

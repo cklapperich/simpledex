@@ -12,7 +12,7 @@
   import ShareButton from './ShareButton.svelte';
     import FilterColumn from './FilterColumn.svelte';
   import FilterModal from './FilterModal.svelte';
-  import { filteredCards, filteredCardMap, filteredSetMap, isLoading as cardsLoading } from '../stores/cards';
+  import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection, totalCards } from '../stores/collection';
   import { wishlist, totalWishlisted } from '../stores/wishlist';
   import { MODERN_SERIES } from '../constants';
@@ -72,7 +72,7 @@
       for (const cardId in sourceData) {
         // For collection: check if quantity > 0, for wishlist: check if true
         if (mode === 'collection' ? sourceData[cardId] > 0 : sourceData[cardId]) {
-          const card = $filteredCardMap.get(cardId);
+          const card = $cardMap.get(cardId);
           if (card) {
             cards.push(card);
           }
@@ -98,17 +98,17 @@
 
       if (!hasTextSearch && !hasSearchFilters) {
         // No search and no filters - show Base Set by default
-        const baseSet = $filteredSetMap.get('base set');
-        cards = baseSet ? [...baseSet] : $filteredCards.slice(0, 50);
+        const baseSet = $setMap.get('base set');
+        cards = baseSet ? [...baseSet] : $allCards.slice(0, 50);
       } else if (!hasTextSearch && hasSearchFilters) {
         // Filter-only query (e.g., "artist:ken") - search all cards
-        cards = [...$filteredCards];
+        cards = [...$allCards];
       } else {
         // Has text search
         const queryLower = searchText.toLowerCase();
 
         // Check if query matches a set name exactly (case-insensitive) using pre-built index
-        const setCards = $filteredSetMap.get(queryLower);
+        const setCards = $setMap.get(queryLower);
         if (setCards) {
           cards = [...setCards];
         } else {
@@ -122,7 +122,7 @@
             for (const cardId of fieldResult.result) {
               if (!cardSet.has(cardId)) {
                 cardSet.add(cardId);
-                const card = $filteredCardMap.get(cardId);
+                const card = $cardMap.get(cardId);
                 if (card) {
                   cards.push(card);
                 }
@@ -178,8 +178,8 @@
 
   $effect(() => {
     // Build FlexSearch index after cards are loaded
-    if (!$cardsLoading && $filteredCards.length > 0) {
-      console.log(`Building search index for ${$filteredCards.length} cards`);
+    if (!$cardsLoading && $allCards.length > 0) {
+      console.log(`Building search index for ${$allCards.length} cards`);
 
       searchIndex = new Document({
         document: {
@@ -190,7 +190,7 @@
       });
 
       // Add all filtered cards to index
-      for (const card of $filteredCards) {
+      for (const card of $allCards) {
         const searchableCard = {
           id: card.id,
           name: getCardName(card)
