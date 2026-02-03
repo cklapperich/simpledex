@@ -30,11 +30,40 @@ export function sortCardsBySetAndNumber(cards: Card[]): Card[] {
 
 /**
  * Sorts cards by release date (newest first)
+ * - Future sets appear at the top
+ * - Cards without release dates appear at the top
+ * - Then sorted newest to oldest
  * Used for search results display
  */
 export function sortCardsByReleaseDate(cards: Card[]): Card[] {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
+
   return cards.sort((a, b) => {
-    if (!a || !b || !a.releaseDate || !b.releaseDate) return 0;
-    return b.releaseDate.localeCompare(a.releaseDate);
+    if (!a || !b) return 0;
+
+    const aDate = a.releaseDate;
+    const bDate = b.releaseDate;
+
+    // Missing dates go to top
+    const aHasDate = !!aDate;
+    const bHasDate = !!bDate;
+
+    if (!aHasDate && !bHasDate) return 0;
+    if (!aHasDate) return -1;
+    if (!bHasDate) return 1;
+
+    // Future dates go to top
+    const aIsFuture = aDate > today;
+    const bIsFuture = bDate > today;
+
+    if (aIsFuture && bIsFuture) {
+      // Both future: sort by date (earliest future first, so they appear in upcoming order)
+      return aDate.localeCompare(bDate);
+    }
+    if (aIsFuture) return -1;
+    if (bIsFuture) return 1;
+
+    // Both have dates in the past: newest first
+    return bDate.localeCompare(aDate);
   });
 }
