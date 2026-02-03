@@ -38,6 +38,9 @@
   // Set context so CardItem knows we're in read-only mode and which mode
   setContext('mode', () => mode);
   setContext('readOnly', true);
+  // Set context for shared collection/wishlist data (avoids prop drilling through CardGrid)
+  setContext('sharedCollection', () => sharedCollection);
+  setContext('sharedWishlist', () => sharedWishlist);
 
   // Calculate totals
   const totalCollectionCards = $derived(
@@ -322,7 +325,7 @@
             <p class="text-gray-600">Try adjusting your search or filters</p>
           </div>
         {:else}
-          <CardGrid cards={displayedCards} collection={sharedCollection} wishlist={sharedWishlist} />
+          <CardGrid cards={displayedCards} />
         {/if}
       {/if}
     {/if}
