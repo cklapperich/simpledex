@@ -4,12 +4,16 @@ import { preprocessBlob, normalizeEmbedding } from '../../lib/preprocessing';
 import { openDB, type IDBPDatabase } from 'idb';
 
 // Configure for browser - use local model files
-env.allowLocalModels = true;
+env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// Local model URL path (served from public/model/)
-const LOCAL_MODEL_URL = '/model/';
-const MODEL_CONFIG_URL = '/model/config.json';
+// Local model URL - must be full URL for transformers.js
+// Built dynamically from window.location.origin
+function getModelUrl(): string {
+  return `${window.location.origin}/model/`;
+}
+
+const MODEL_CONFIG_PATH = '/model/config.json';
 
 // IndexedDB for storing model ETag
 const DB_NAME = 'simpledex-scanner';
@@ -42,7 +46,7 @@ async function getDB(): Promise<IDBPDatabase> {
 export async function loadModel(onProgress?: (percent: number) => void): Promise<void> {
   if (modelInstance) return;
 
-  modelInstance = await pipeline('image-feature-extraction', LOCAL_MODEL_URL, {
+  modelInstance = await pipeline('image-feature-extraction', getModelUrl(), {
     dtype: DTYPE,
     progress_callback: (data: { status: string; progress?: number }) => {
       if (data.status === 'progress' && onProgress && data.progress !== undefined) {
@@ -70,7 +74,7 @@ export async function isModelCached(): Promise<boolean> {
  */
 async function storeModelETag(): Promise<void> {
   try {
-    const response = await fetch(MODEL_CONFIG_URL, { method: 'HEAD' });
+    const response = await fetch(MODEL_CONFIG_PATH, { method: 'HEAD' });
     const etag = response.headers.get('ETag');
     if (etag) {
       const db = await getDB();
@@ -116,7 +120,7 @@ export async function checkModelForUpdates(): Promise<'fresh' | 'stale' | 'not-d
   }
 
   try {
-    const response = await fetch(MODEL_CONFIG_URL, {
+    const response = await fetch(MODEL_CONFIG_PATH, {
       method: 'HEAD',
       headers: {
         'If-None-Match': storedETag
