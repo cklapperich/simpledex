@@ -64,84 +64,81 @@
 </script>
 
 <div class="scan-interface">
-	<!-- Background layer: Camera Preview -->
-	<div class="camera-layer">
-		<CameraPreview bind:this={cameraPreview} />
+	<!-- Camera section: preview + viewfinder + capture button -->
+	<div class="camera-section">
+		<div class="camera-layer">
+			<CameraPreview bind:this={cameraPreview} />
+		</div>
+		<div class="viewfinder-layer">
+			<ViewfinderOverlay />
+		</div>
+		<div class="capture-layer">
+			<CaptureButton onclick={handleCapture} />
+		</div>
 	</div>
 
-	<!-- Overlay layer: Viewfinder -->
-	<div class="viewfinder-layer">
-		<ViewfinderOverlay />
-	</div>
-
-	<!-- UI layer: Capture Button -->
-	<div class="capture-layer">
-		<CaptureButton onclick={handleCapture} />
-	</div>
-
-	<!-- Inline results panel - between capture button and queue -->
-	<div class="results-layer">
-		<InlineResults item={selectedItem} onAdd={handleAdd} onReject={handleReject} />
-	</div>
-
-	<!-- Queue strip - always visible at bottom -->
-	<div class="queue-strip">
-		<QueuePanel bind:selectedItemId />
+	<!-- Bottom controls: results + queue -->
+	<div class="bottom-section">
+		<div class="results-panel">
+			<InlineResults item={selectedItem} onAdd={handleAdd} onReject={handleReject} />
+		</div>
+		<div class="queue-panel">
+			<QueuePanel bind:selectedItemId />
+		</div>
 	</div>
 </div>
 
 <style>
 	.scan-interface {
-		position: relative;
+		display: flex;
+		flex-direction: column;
 		width: 100%;
-		height: 100%;
-		min-height: 100vh;
+		height: 100vh;
+		height: 100dvh;
 		overflow: hidden;
 		background-color: #0a0a0a;
 	}
 
-	/* Camera preview - full screen background */
+	/* Camera section - takes remaining space */
+	.camera-section {
+		position: relative;
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+	}
+
 	.camera-layer {
 		position: absolute;
 		inset: 0;
-		z-index: 1;
 	}
 
-	/* Viewfinder overlay - centered card frame */
 	.viewfinder-layer {
 		position: absolute;
 		inset: 0;
-		z-index: 2;
 		pointer-events: none;
 	}
 
-	/* Capture button - fixed above results panel */
 	.capture-layer {
-		position: fixed;
-		bottom: calc(100px + 180px + 2rem);
+		position: absolute;
+		bottom: 1rem;
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 10;
 	}
 
-	/* Inline results - between capture button and queue */
-	.results-layer {
-		position: fixed;
-		bottom: calc(100px + 1rem);
-		left: 1rem;
-		right: 1rem;
-		z-index: 5;
-	}
-
-	/* Queue strip - always visible at bottom */
-	.queue-strip {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 100px;
+	/* Bottom section - fixed height for results + queue */
+	.bottom-section {
+		flex-shrink: 0;
 		background-color: rgba(15, 15, 15, 0.95);
 		border-top: 1px solid rgba(255, 255, 255, 0.1);
-		z-index: 5;
+	}
+
+	.results-panel {
+		padding: 0.5rem;
+	}
+
+	.queue-panel {
+		height: 90px;
+		border-top: 1px solid rgba(255, 255, 255, 0.05);
 	}
 </style>

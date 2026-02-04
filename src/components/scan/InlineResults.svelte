@@ -85,33 +85,25 @@
 
 <style>
 	.inline-results {
-		height: 180px;
-		background: rgba(0, 0, 0, 0.8);
-		border-radius: 12px;
-		padding: 12px;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		overflow: hidden;
+		gap: 4px;
 	}
 
 	.matches-list {
-		flex: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
-		overflow-y: auto;
+		gap: 4px;
 	}
 
 	.match-row {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 6px 8px;
+		gap: 8px;
+		padding: 4px 6px;
 		background: rgba(255, 255, 255, 0.05);
-		border-radius: 8px;
+		border-radius: 6px;
 		border: 1px solid transparent;
-		transition: background-color 0.15s ease, border-color 0.15s ease;
 	}
 
 	.match-row.best {
@@ -120,25 +112,22 @@
 	}
 
 	.thumbnail {
-		width: 40px;
-		height: 56px;
+		width: 32px;
+		height: 44px;
 		object-fit: cover;
-		border-radius: 4px;
+		border-radius: 3px;
 		background: rgba(255, 255, 255, 0.1);
 		flex-shrink: 0;
 	}
 
 	.card-info {
 		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
 		min-width: 0;
 		overflow: hidden;
 	}
 
 	.card-name {
-		font-size: 14px;
+		font-size: 13px;
 		font-weight: 500;
 		color: rgba(255, 255, 255, 0.95);
 		white-space: nowrap;
@@ -147,7 +136,7 @@
 	}
 
 	.card-meta {
-		font-size: 12px;
+		font-size: 11px;
 		color: rgba(255, 255, 255, 0.6);
 		white-space: nowrap;
 		overflow: hidden;
@@ -156,21 +145,16 @@
 
 	.add-button {
 		flex-shrink: 0;
-		width: 36px;
-		height: 36px;
+		width: 32px;
+		height: 32px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(59, 130, 246, 0.8);
+		background: rgba(34, 197, 94, 0.8);
 		border: none;
-		border-radius: 8px;
+		border-radius: 6px;
 		color: white;
 		cursor: pointer;
-		transition: background-color 0.15s ease, transform 0.1s ease;
-	}
-
-	.add-button:hover {
-		background: rgba(59, 130, 246, 1);
 	}
 
 	.add-button:active {
@@ -180,16 +164,16 @@
 	.swipe-hint {
 		display: flex;
 		justify-content: space-between;
-		padding: 4px 8px;
-		font-size: 11px;
-		color: rgba(255, 255, 255, 0.4);
+		padding: 2px 4px;
+		font-size: 10px;
+		color: rgba(255, 255, 255, 0.3);
 	}
 
 	.hint-left {
-		color: rgba(239, 68, 68, 0.6);
+		color: rgba(239, 68, 68, 0.5);
 	}
 
 	.hint-right {
-		color: rgba(34, 197, 94, 0.6);
+		color: rgba(34, 197, 94, 0.5);
 	}
 </style>
