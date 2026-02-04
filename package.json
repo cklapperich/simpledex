@@ -13,11 +13,6 @@
     "count": "git ls-files '*.ts' '*.svelte' '*.sql' '*.html' | xargs wc -l",
     "mobileclip:build": "tsx src/mobileclip-poc/index.ts --build",
     "mobileclip:search": "tsx src/mobileclip-poc/index.ts --search",
-    "embeddings:build": "tsx scripts/build-embeddings.ts",
-    "embeddings:resume": "tsx scripts/resume-embeddings.ts",
-    "embeddings:verify": "tsx scripts/verify-embeddings.ts",
-    "embeddings:upload": "tsx scripts/build-embeddings.ts --upload",
-    "embeddings:update": "tsx scripts/update-embeddings.ts",
     "embeddings:build-gpu": "python3 scripts/build-embeddings.py"
   },
   "keywords": [],
@@ -47,8 +42,10 @@
     "glob": "^10.5.0",
     "idb": "^8.0.3",
     "lucide-svelte": "^0.562.0",
+    "onnxruntime-node": "^1.23.2",
     "p-limit": "^6.2.0",
     "papaparse": "^5.5.3",
+    "sharp": "^0.34.5",
     "svelte-sonner": "^1.0.7",
     "tailwindcss": "^4.1.18"
   }
