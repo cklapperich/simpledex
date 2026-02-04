@@ -111,3 +111,26 @@ export function logPreprocessingConfig(): void {
   console.log(`  - Crop method: ${opts.cropMethod}`);
   console.log(`  - Image size: ${opts.imageSize}x${opts.imageSize}`);
 }
+
+/**
+ * L2 normalize an embedding vector.
+ * Used by both embedding generation (build) and inference (search).
+ *
+ * @param embedding - Raw embedding vector from model
+ * @returns L2-normalized embedding (unit length)
+ */
+export function normalizeEmbedding(embedding: Float32Array): Float32Array {
+  let norm = 0;
+  for (let i = 0; i < embedding.length; i++) {
+    norm += embedding[i] * embedding[i];
+  }
+  norm = Math.sqrt(norm);
+
+  if (norm > 1e-12) {
+    for (let i = 0; i < embedding.length; i++) {
+      embedding[i] /= norm;
+    }
+  }
+
+  return embedding;
+}
