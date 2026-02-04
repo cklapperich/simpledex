@@ -1,19 +1,18 @@
 #!/usr/bin/env tsx
 /**
  * Build embeddings database from local card images using transformers.js
- * TypeScript alternative to build-embeddings.py - useful for testing pipeline compatibility
  *
  * Usage:
- *   npm run embeddings:build:ts
- *   npm run embeddings:build:ts -- --batch-size 8
- *   npm run embeddings:search -- <image-path>
+ *   npm run embeddings:build
+ *   npm run embeddings:build -- --checkpoint-interval 50
+ *
+ * For searching/testing inference, use: npm run test:inference
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { pipeline } from '@huggingface/transformers';
 import { MODEL_CONFIG, MODEL_ID, DTYPE, INFERENCE_OPTIONS, EMBEDDING_DIM } from '../src/config/model-config.js';
-import { normalizeEmbedding } from '../src/lib/preprocessing.js';
+import { getImageEmbedding, loadModel } from '../src/mobileclip-poc/model.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,9 +47,6 @@ interface CardImage {
 interface CheckpointData {
   [cardId: string]: number[];
 }
-
-// Model singleton
-let modelInstance: any = null;
 
 /**
  * Convert filesystem filename back to card ID
@@ -167,154 +163,45 @@ function writeBinaryEmbeddings(embeddings: CheckpointData, outputPath: string): 
   console.log(`Wrote ${outputPath}: ${sizeMB.toFixed(2)} MB (${cardIds.length} cards)`);
 }
 
-/**
- * Load the model (singleton)
- */
-async function loadModel(): Promise<any> {
-  if (modelInstance) return modelInstance;
-
-  console.log(`Loading model: ${MODEL_ID} (${DTYPE})...`);
-  modelInstance = await pipeline('image-feature-extraction', MODEL_ID, {
-    dtype: DTYPE,
-  });
-  console.log('Model loaded successfully\n');
-
-  return modelInstance;
-}
-
-/**
- * Generate embedding for a single image
- */
-async function getImageEmbedding(imagePath: string): Promise<number[]> {
-  const model = await loadModel();
-  const output = await model(imagePath, INFERENCE_OPTIONS);
-  const embedding = new Float32Array(output.data);
-  return Array.from(normalizeEmbedding(embedding));
-}
-
-/**
- * Find similar cards to a query image
- */
-function findSimilar(
-  queryEmbedding: number[],
-  embeddings: CheckpointData,
-  topK: number = 5
-): Array<{ cardId: string; score: number }> {
-  const results: Array<{ cardId: string; score: number }> = [];
-
-  for (const [cardId, embedding] of Object.entries(embeddings)) {
-    // Normalize stored embedding (in case it wasn't normalized during build)
-    const normalizedEmb = Array.from(normalizeEmbedding(new Float32Array(embedding)));
-
-    // Cosine similarity (dot product of normalized vectors)
-    let dot = 0;
-    for (let i = 0; i < queryEmbedding.length; i++) {
-      dot += queryEmbedding[i] * normalizedEmb[i];
-    }
-    results.push({ cardId, score: dot });
-  }
-
-  results.sort((a, b) => b.score - a.score);
-  return results.slice(0, topK);
-}
-
-/**
- * Load embeddings from binary file
- */
-function loadEmbeddingsFromBinary(filePath: string): CheckpointData {
-  const buffer = fs.readFileSync(filePath);
-  let offset = 0;
-
-  const cardCount = buffer.readUInt32LE(offset);
-  offset += 4;
-  const embeddingDim = buffer.readUInt32LE(offset);
-  offset += 4;
-
-  console.log(`Loading ${cardCount} embeddings (dim=${embeddingDim})...`);
-
-  const embeddings: CheckpointData = {};
-
-  for (let i = 0; i < cardCount; i++) {
-    const cardIdLength = buffer.readUInt8(offset);
-    offset += 1;
-
-    const cardId = buffer.toString('utf-8', offset, offset + cardIdLength);
-    offset += cardIdLength;
-
-    const embedding: number[] = [];
-    for (let j = 0; j < embeddingDim; j++) {
-      embedding.push(buffer.readFloatLE(offset));
-      offset += 4;
-    }
-
-    embeddings[cardId] = embedding;
-  }
-
-  return embeddings;
-}
-
 function printUsage(): void {
   console.log(`
-MobileClip-S2 Embeddings Builder (TypeScript)
+MobileClip-S2 Embeddings Builder
 
 Usage:
-  npm run embeddings:build:ts [options]
-  npm run embeddings:search -- <image-path> [options]
+  npm run embeddings:build [options]
 
-Build Command:
-  tsx scripts/build-embeddings-ts.ts --build [options]
+Options:
+  --checkpoint-interval <n>  Save checkpoint every n images (default: 100)
+  --output <path>            Output file path (default: public/embeddings.bin)
+  --help                     Show this help message
 
-  Options:
-    --batch-size <n>         Process n images at a time (default: 1)
-    --checkpoint-interval <n> Save checkpoint every n images (default: 100)
-
-Search Command:
-  tsx scripts/build-embeddings-ts.ts --search <image-path> [options]
-
-  Options:
-    --embeddings <path>      Path to embeddings file (default: public/embeddings.bin)
-    --top <n>                Number of results (default: 10)
+For testing inference on a single image:
+  npm run test:inference -- <image-path>
 
 Examples:
-  npm run embeddings:build:ts
-  npm run embeddings:search -- ./test-card.jpg --top 5
+  npm run embeddings:build
+  npm run embeddings:build -- --checkpoint-interval 50
 `);
 }
 
-function parseArgs(): { command: string; options: Record<string, string> } {
+function parseArgs(): { options: Record<string, string>; showHelp: boolean } {
   const args = process.argv.slice(2);
   const options: Record<string, string> = {};
-  let command = '';
+  let showHelp = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    if (arg === '--build') {
-      command = 'build';
-    } else if (arg === '--search' && args[i + 1]) {
-      command = 'search';
-      options.imagePath = args[++i];
-    } else if (arg === '--batch-size' && args[i + 1]) {
-      options.batchSize = args[++i];
-    } else if (arg === '--checkpoint-interval' && args[i + 1]) {
+    if (arg === '--checkpoint-interval' && args[i + 1]) {
       options.checkpointInterval = args[++i];
-    } else if (arg === '--embeddings' && args[i + 1]) {
-      options.embeddings = args[++i];
-    } else if (arg === '--top' && args[i + 1]) {
-      options.top = args[++i];
     } else if (arg === '--output' && args[i + 1]) {
       options.output = args[++i];
     } else if (arg === '--help' || arg === '-h') {
-      command = 'help';
+      showHelp = true;
     }
   }
 
-  // Default to build if no command specified
-  if (!command && args.length === 0) {
-    command = 'build';
-  }
-
-  return { command, options };
+  return { options, showHelp };
 }
 
 async function runBuild(options: Record<string, string>): Promise<void> {
@@ -394,64 +281,16 @@ async function runBuild(options: Record<string, string>): Promise<void> {
   console.log('\nDone!');
 }
 
-async function runSearch(options: Record<string, string>): Promise<void> {
-  const imagePath = options.imagePath;
-  const embeddingsPath = options.embeddings || OUTPUT_FILE;
-  const topK = parseInt(options.top || '10', 10);
-
-  if (!imagePath) {
-    console.error('Error: No image path provided');
-    process.exit(1);
-  }
-
-  console.log(`Searching for similar cards to: ${imagePath}\n`);
-
-  // Load embeddings
-  if (!fs.existsSync(embeddingsPath)) {
-    console.error(`Embeddings file not found: ${embeddingsPath}`);
-    console.error('Run "npm run embeddings:build:ts" first.');
-    process.exit(1);
-  }
-
-  const embeddings = loadEmbeddingsFromBinary(embeddingsPath);
-  console.log(`Loaded ${Object.keys(embeddings).length} embeddings\n`);
-
-  // Generate embedding for query image
-  console.log('Generating embedding for query image...');
-  const queryEmbedding = await getImageEmbedding(imagePath);
-
-  // Find similar cards
-  console.log(`\nTop ${topK} similar cards:\n`);
-  const results = findSimilar(queryEmbedding, embeddings, topK);
-
-  results.forEach((result, index) => {
-    console.log(`${index + 1}. ${result.cardId}`);
-    console.log(`   Score: ${result.score.toFixed(4)}`);
-    console.log();
-  });
-}
-
 async function main(): Promise<void> {
-  const { command, options } = parseArgs();
+  const { options, showHelp } = parseArgs();
+
+  if (showHelp) {
+    printUsage();
+    return;
+  }
 
   try {
-    switch (command) {
-      case 'build':
-        await runBuild(options);
-        break;
-
-      case 'search':
-        await runSearch(options);
-        break;
-
-      case 'help':
-        printUsage();
-        break;
-
-      default:
-        printUsage();
-        process.exit(1);
-    }
+    await runBuild(options);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : error);
     process.exit(1);

@@ -23,8 +23,8 @@ Options:
   --help              Show this help message
 
 Examples:
-  npm run mobileclip:build -- ./pokemon-cards
-  npm run mobileclip:search -- ./test-image.jpg --top 10
+  npm run poc:build -- ./card-images
+  npm run poc:search -- ./test-image.jpg --top 10
 `);
 }
 

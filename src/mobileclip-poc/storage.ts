@@ -7,7 +7,6 @@ import { MODEL_ID } from '../config/model-config.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Default to public/embeddings.bin (built by Python script)
 const DEFAULT_STORAGE_PATH = path.join(
   __dirname,
   '..',
