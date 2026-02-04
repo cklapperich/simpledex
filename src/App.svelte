@@ -7,6 +7,7 @@
   import DeckBuilderPage from './components/DeckBuilderPage.svelte';
   import SharedProfileView from './components/SharedProfileView.svelte';
   import SyncIndicator from './components/SyncIndicator.svelte';
+  import ScanPage from './components/scan/ScanPage.svelte';
   import { Toaster } from 'svelte-sonner';
   import { activeView } from './stores/view';
   import { activeShareCode } from './stores/share';
@@ -44,6 +45,8 @@
         <DeckBuilderPage />
       {:else if $activeView === 'about'}
         <About />
+      {:else if $activeView === 'scan'}
+        <ScanPage />
       {:else}
         <SearchPage />
       {/if}

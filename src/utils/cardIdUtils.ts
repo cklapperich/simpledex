@@ -19,7 +19,7 @@ const TRAILING_VARIANT_ONE = /(\d+[A-Z])1$/;
  * - Dots: sm7.5 vs sm75
  * - "pt" notation: swsh12.5 vs swsh12pt5
  * - Leading zeros in set numbers: sv01 vs sv1
- * - Leading zeros in card numbers: 099 vs 99, H08 vs H8, SM09 vs SM9
+ * - Leading zeros in card numbers: 099 vs 99, H08 -> H8, SM09 -> SM9
  * - Subset suffixes: swsh125gg vs swsh125, swsh12tg -> swsh12
  * - Celebrations variants: cel25c vs cel25
  * - Variant underscores: 15_A vs 15A
@@ -64,4 +64,57 @@ export function normalizeCardId(id: string): string {
   cardNumber = cardNumber.replace(TRAILING_VARIANT_ONE, '$1');
 
   return `${setId}-${cardNumber}`;
+}
+
+// Mapping for filesystem-safe conversions (bidirectional)
+const FILESYSTEM_CHAR_MAP: Record<string, string> = {
+  '!': '_excl_',
+  '?': '_qmark_',
+  '*': '_star_',
+  '<': '_lt_',
+  '>': '_gt_',
+  '"': '_quot_',
+  '|': '_pipe_',
+  '\\': '_bslash_',
+  '/': '_slash_',
+  ':': '_colon_',
+  '%': '_pct_',
+};
+
+const FILESYSTEM_REVERSE_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(FILESYSTEM_CHAR_MAP).map(([k, v]) => [v, k])
+);
+
+/**
+ * Convert a card ID to a filesystem-safe filename (without extension)
+ * ex10-! -> ex10-_excl_
+ * ex10-? -> ex10-_qmark_
+ * exu-%3F -> exu-_qmark_ (URL-decodes first)
+ */
+export function cardIdToFilename(id: string): string {
+  // URL-decode first (handles %3F -> ?, %21 -> !, etc.)
+  let result: string;
+  try {
+    result = decodeURIComponent(id);
+  } catch {
+    result = id;
+  }
+
+  for (const [char, replacement] of Object.entries(FILESYSTEM_CHAR_MAP)) {
+    result = result.split(char).join(replacement);
+  }
+  return result;
+}
+
+/**
+ * Convert a filesystem filename back to a card ID
+ * ex10-_excl_ -> ex10-!
+ * ex10-_qmark_ -> ex10-?
+ */
+export function filenameToCardId(filename: string): string {
+  let result = filename;
+  for (const [replacement, char] of Object.entries(FILESYSTEM_REVERSE_MAP)) {
+    result = result.split(replacement).join(char);
+  }
+  return result;
 }

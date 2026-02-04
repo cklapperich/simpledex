@@ -1,0 +1,23 @@
+{
+  "modelId": "Xenova/mobileclip_s2",
+  "onnxModel": "onnx/vision_model.onnx",
+  "dtype": "fp32",
+  "embeddingDim": 512,
+
+  "preprocessing": {
+    "imageSize": 256,
+    "interpolation": "bilinear",
+    "mean": [0.48145466, 0.4578275, 0.40821073],
+    "std": [0.26862954, 0.26130258, 0.27577711],
+    "cropMethod": "none"
+  },
+
+  "inference": {
+    "pooling": "mean",
+    "normalize": true
+  },
+
+  "output": {
+    "embeddingsFile": "public/embeddings.bin"
+  }
+}
