@@ -8,46 +8,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { pipeline } from '@huggingface/transformers';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-import { MODEL_CONFIG, MODEL_ID, DTYPE, INFERENCE_OPTIONS } from '../src/config/model-config.js';
-import { preprocessImage, logPreprocessingConfig } from '../src/lib/preprocessing.js';
+import { MODEL_CONFIG, MODEL_ID } from '../src/config/model-config.js';
+import { loadModel, getImageEmbedding } from './lib/model.js';
 import { findSimilar } from '../src/services/scanner/similarity.js';
 import type { EmbeddingIndex } from '../src/services/scanner/types.js';
 
-// Model singleton
-let model: any = null;
-
-async function loadModel(): Promise<any> {
-  if (model) return model;
-  console.log(`Loading model: ${MODEL_ID} (${DTYPE})...`);
-  logPreprocessingConfig();
-  model = await pipeline('image-feature-extraction', MODEL_ID, { dtype: DTYPE });
-  console.log('Model loaded successfully');
-  return model;
-}
-
-async function getImageEmbedding(imagePath: string): Promise<Float32Array> {
-  const m = await loadModel();
-  const processedImage = await preprocessImage(imagePath);
-  const output = await m(processedImage, INFERENCE_OPTIONS);
-  const embedding = new Float32Array(output.data);
-
-  // L2 normalize
-  let norm = 0;
-  for (let i = 0; i < embedding.length; i++) {
-    norm += embedding[i] * embedding[i];
-  }
-  norm = Math.sqrt(norm);
-  if (norm > 1e-12) {
-    for (let i = 0; i < embedding.length; i++) {
-      embedding[i] /= norm;
-    }
-  }
-  return embedding;
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function loadEmbeddings(filePath: string): EmbeddingIndex {
   const buffer = fs.readFileSync(filePath);

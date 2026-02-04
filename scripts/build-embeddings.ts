@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { MODEL_CONFIG, MODEL_ID, DTYPE, INFERENCE_OPTIONS, EMBEDDING_DIM } from '../src/config/model-config.js';
-import { getImageEmbedding, loadModel } from '../src/mobileclip-poc/model.js';
+import { loadModel, getImageEmbedding } from './lib/model.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
