@@ -1,6 +1,6 @@
 import { pipeline, env } from '@huggingface/transformers';
 import { MODEL_ID, DTYPE, INFERENCE_OPTIONS } from '../../config/model-config';
-import { preprocessBlob } from '../../lib/preprocessing';
+import { preprocessBlob, normalizeEmbedding } from '../../lib/preprocessing';
 
 // Configure for browser
 env.allowLocalModels = false;
@@ -44,17 +44,6 @@ export async function getEmbedding(blob: Blob): Promise<Float32Array> {
   const output = await modelInstance(processedImage, INFERENCE_OPTIONS);
   const embedding = new Float32Array(output.data);
 
-  // L2 normalize
-  let norm = 0;
-  for (let i = 0; i < embedding.length; i++) {
-    norm += embedding[i] * embedding[i];
-  }
-  norm = Math.sqrt(norm);
-  if (norm > 1e-12) {
-    for (let i = 0; i < embedding.length; i++) {
-      embedding[i] /= norm;
-    }
-  }
-
-  return embedding;
+  // L2 normalize using shared function
+  return normalizeEmbedding(embedding);
 }

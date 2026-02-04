@@ -13,6 +13,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { pipeline } from '@huggingface/transformers';
 import { MODEL_CONFIG, MODEL_ID, DTYPE, INFERENCE_OPTIONS, EMBEDDING_DIM } from '../src/config/model-config.js';
+import { normalizeEmbedding } from '../src/lib/preprocessing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -187,7 +188,8 @@ async function loadModel(): Promise<any> {
 async function getImageEmbedding(imagePath: string): Promise<number[]> {
   const model = await loadModel();
   const output = await model(imagePath, INFERENCE_OPTIONS);
-  return Array.from(output.data as Float32Array);
+  const embedding = new Float32Array(output.data);
+  return Array.from(normalizeEmbedding(embedding));
 }
 
 /**
@@ -201,10 +203,13 @@ function findSimilar(
   const results: Array<{ cardId: string; score: number }> = [];
 
   for (const [cardId, embedding] of Object.entries(embeddings)) {
-    // Cosine similarity (vectors are already normalized, so dot product = cosine)
+    // Normalize stored embedding (in case it wasn't normalized during build)
+    const normalizedEmb = Array.from(normalizeEmbedding(new Float32Array(embedding)));
+
+    // Cosine similarity (dot product of normalized vectors)
     let dot = 0;
     for (let i = 0; i < queryEmbedding.length; i++) {
-      dot += queryEmbedding[i] * embedding[i];
+      dot += queryEmbedding[i] * normalizedEmb[i];
     }
     results.push({ cardId, score: dot });
   }

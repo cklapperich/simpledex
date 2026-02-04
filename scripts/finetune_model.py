@@ -351,12 +351,7 @@ class HardNegativeBatchSampler:
         for pokemon in self.pokemon_list:
             indices = self.pokemon_to_indices[pokemon]
             k = min(self.cards_per_pokemon, len(indices))
-
-            if len(indices) >= k:
-                sampled = random.sample(indices, k)
-            else:
-                # If not enough cards, sample with replacement
-                sampled = random.choices(indices, k=k)
+            sampled = random.sample(indices, k)
 
             batch.extend(sampled)
 
