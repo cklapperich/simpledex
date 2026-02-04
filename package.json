@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsx scripts/download-model.ts && vite build",
     "build:cards": "git submodule update --init --remote && tsx build-multi-language.ts",
     "build:local": "npm run build:cards && vite build",
     "preview": "vite preview",
