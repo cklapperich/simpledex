@@ -3,17 +3,24 @@ import { DTYPE, INFERENCE_OPTIONS } from '../../config/model-config';
 import { preprocessBlob, normalizeEmbedding } from '../../lib/preprocessing';
 import { openDB, type IDBPDatabase } from 'idb';
 
-// Configure for browser - use local model files
+// Configure for browser
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// Local model URL - must be full URL for transformers.js
-// Built dynamically from window.location.origin
-function getModelUrl(): string {
-  return `${window.location.origin}/model/`;
-}
-
+// Self-hosted model path
+const MODEL_PATH = '/model/';
 const MODEL_CONFIG_PATH = '/model/config.json';
+
+/**
+ * Configure transformers.js to load from our server instead of HuggingFace
+ * Must be called before loading the model
+ */
+function configureModelSource(): void {
+  // Point to our server
+  // Default template is '{model}/resolve/{revision}' - we simplify to just '{model}'
+  env.remoteHost = window.location.origin;
+  env.remotePathTemplate = '{model}';
+}
 
 // IndexedDB for storing model ETag
 const DB_NAME = 'simpledex-scanner';
@@ -46,7 +53,11 @@ async function getDB(): Promise<IDBPDatabase> {
 export async function loadModel(onProgress?: (percent: number) => void): Promise<void> {
   if (modelInstance) return;
 
-  modelInstance = await pipeline('image-feature-extraction', getModelUrl(), {
+  // Configure to load from our server
+  configureModelSource();
+
+  // Model ID 'model' + template '{model}' = loads from /model/
+  modelInstance = await pipeline('image-feature-extraction', 'model', {
     dtype: DTYPE,
     progress_callback: (data: { status: string; progress?: number }) => {
       if (data.status === 'progress' && onProgress && data.progress !== undefined) {
