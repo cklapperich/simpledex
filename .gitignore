@@ -28,7 +28,7 @@ public/cards-asian.json
 
 # Sample and reference files
 sample_search_page/
-
+card-images/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
