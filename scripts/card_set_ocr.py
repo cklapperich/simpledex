@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import easyocr
+import numpy as np
 from PIL import Image
 
 # Initialize EasyOCR reader (downloads model on first run)

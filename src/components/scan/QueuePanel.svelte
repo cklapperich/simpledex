@@ -112,13 +112,8 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="queue-panel">
-	<div class="queue-header">
-		<span class="queue-title">Queue</span>
-		<span class="queue-count">{$scanStore.queueItems.length}</span>
-	</div>
-
-	<div class="queue-items">
+<div class="queue-strip">
+	<div class="queue-scroll">
 		{#each $scanStore.queueItems as item (item.id)}
 			<div
 				role="button"
@@ -165,7 +160,7 @@
 			</div>
 		{:else}
 			<div class="empty-queue">
-				<span>No captures yet</span>
+				<span>Capture cards to add to queue</span>
 			</div>
 		{/each}
 	</div>
@@ -263,62 +258,36 @@
 {/if}
 
 <style>
-	.queue-panel {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		padding: 0.5rem;
-		overflow: hidden;
-	}
-
-	.queue-header {
+	.queue-strip {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: 0.5rem;
-		margin-bottom: 0.5rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		height: 100%;
+		padding: 0.5rem 1rem;
 	}
 
-	.queue-title {
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: rgba(255, 255, 255, 0.8);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.queue-count {
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.5);
-		background-color: rgba(255, 255, 255, 0.1);
-		padding: 0.125rem 0.5rem;
-		border-radius: 9999px;
-	}
-
-	.queue-items {
-		flex: 1;
-		overflow-y: auto;
-		overflow-x: hidden;
+	.queue-scroll {
 		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+		flex-direction: row;
+		gap: 0.75rem;
+		overflow-x: auto;
+		overflow-y: hidden;
+		height: 100%;
+		align-items: center;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+		padding: 0.25rem;
 	}
 
-	/* Mobile: horizontal scroll */
-	@media (max-width: 768px) {
-		.queue-items {
-			flex-direction: row;
-			overflow-x: auto;
-			overflow-y: hidden;
-		}
+	.queue-scroll::-webkit-scrollbar {
+		display: none;
 	}
 
 	.queue-item {
 		position: relative;
 		flex-shrink: 0;
-		width: 60px;
-		height: 84px;
+		width: 56px;
+		height: 78px;
 		border-radius: 6px;
 		overflow: hidden;
 		cursor: pointer;
@@ -326,6 +295,7 @@
 		background: transparent;
 		padding: 0;
 		transition: border-color 0.2s ease, transform 0.2s ease;
+		scroll-snap-align: center;
 	}
 
 	.queue-item:hover {
@@ -360,8 +330,8 @@
 		position: absolute;
 		bottom: 2px;
 		right: 2px;
-		width: 20px;
-		height: 20px;
+		width: 18px;
+		height: 18px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -422,11 +392,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		height: 100%;
+		width: 100%;
 		color: rgba(255, 255, 255, 0.4);
 		font-size: 0.75rem;
 		text-align: center;
-		padding: 1rem;
 	}
 
 	/* Modal styles */

@@ -26,6 +26,9 @@ cards-database-*/
 # Asian cards (no longer built)
 public/cards-asian.json
 
+# Model files (downloaded at build time via npm run model:download)
+public/model/
+
 # Sample and reference files
 sample_search_page/
 card-images/

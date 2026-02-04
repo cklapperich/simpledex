@@ -5,14 +5,26 @@ const DB_NAME = 'simpledex-scanner';
 const STORE_NAME = 'embeddings';
 const EMBEDDINGS_URL = '/embeddings.bin';
 
+// IndexedDB keys
+const INDEX_KEY = 'index';
+const ETAG_KEY = 'embeddings-etag';
+
+// Session storage key to track if we've checked for updates this session
+const SESSION_CHECK_KEY = 'simpledex-embeddings-checked';
+
 let dbInstance: IDBPDatabase | null = null;
 
 async function getDB(): Promise<IDBPDatabase> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB(DB_NAME, 1, {
-    upgrade(db) {
-      db.createObjectStore(STORE_NAME);
+  dbInstance = await openDB(DB_NAME, 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore(STORE_NAME);
+      }
+      if (oldVersion < 2) {
+        db.createObjectStore('model-meta');
+      }
     }
   });
   return dbInstance;
@@ -20,7 +32,7 @@ async function getDB(): Promise<IDBPDatabase> {
 
 export async function isEmbeddingsCached(): Promise<boolean> {
   const db = await getDB();
-  const data = await db.get(STORE_NAME, 'index');
+  const data = await db.get(STORE_NAME, INDEX_KEY);
   return data !== undefined;
 }
 
@@ -29,6 +41,9 @@ export async function downloadEmbeddings(onProgress?: (percent: number) => void)
   if (!response.ok) {
     throw new Error(`Failed to fetch embeddings: ${response.status}`);
   }
+
+  // Capture ETag from response
+  const etag = response.headers.get('ETag');
 
   if (!response.body) {
     throw new Error('Response body is null for embeddings download');
@@ -60,12 +75,20 @@ export async function downloadEmbeddings(onProgress?: (percent: number) => void)
   const index = parseEmbeddingsBinary(buffer);
 
   const db = await getDB();
-  await db.put(STORE_NAME, index, 'index');
+  await db.put(STORE_NAME, index, INDEX_KEY);
+
+  // Store ETag if available
+  if (etag) {
+    await db.put(STORE_NAME, etag, ETAG_KEY);
+  }
+
+  // Mark as checked for this session
+  markEmbeddingsChecked();
 }
 
 export async function getEmbeddings(): Promise<EmbeddingIndex> {
   const db = await getDB();
-  const data = await db.get(STORE_NAME, 'index');
+  const data = await db.get(STORE_NAME, INDEX_KEY);
   if (!data) {
     throw new Error('Embeddings not cached');
   }
@@ -74,7 +97,73 @@ export async function getEmbeddings(): Promise<EmbeddingIndex> {
 
 export async function clearEmbeddingsCache(): Promise<void> {
   const db = await getDB();
-  await db.delete(STORE_NAME, 'index');
+  await db.delete(STORE_NAME, INDEX_KEY);
+  await db.delete(STORE_NAME, ETAG_KEY);
+  sessionStorage.removeItem(SESSION_CHECK_KEY);
+}
+
+/**
+ * Get the stored ETag for embeddings
+ */
+async function getStoredEmbeddingsETag(): Promise<string | null> {
+  try {
+    const db = await getDB();
+    const etag = await db.get(STORE_NAME, ETAG_KEY);
+    return etag ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if the embeddings have been updated on the server
+ * Returns 'fresh' if unchanged, 'stale' if updated, 'not-downloaded' if not cached
+ */
+export async function checkEmbeddingsForUpdates(): Promise<'fresh' | 'stale' | 'not-downloaded'> {
+  // Check if we've already verified this session
+  if (sessionStorage.getItem(SESSION_CHECK_KEY) === 'checked') {
+    return 'fresh';
+  }
+
+  const cached = await isEmbeddingsCached();
+  if (!cached) {
+    return 'not-downloaded';
+  }
+
+  const storedETag = await getStoredEmbeddingsETag();
+  if (!storedETag) {
+    // No ETag stored - assume stale to force re-download with proper ETag tracking
+    return 'stale';
+  }
+
+  try {
+    const response = await fetch(EMBEDDINGS_URL, {
+      method: 'HEAD',
+      headers: {
+        'If-None-Match': storedETag
+      }
+    });
+
+    if (response.status === 304) {
+      // Not modified - mark as checked for this session
+      sessionStorage.setItem(SESSION_CHECK_KEY, 'checked');
+      return 'fresh';
+    }
+
+    // Embeddings have been updated
+    return 'stale';
+  } catch {
+    // Network error - assume fresh to allow offline usage
+    sessionStorage.setItem(SESSION_CHECK_KEY, 'checked');
+    return 'fresh';
+  }
+}
+
+/**
+ * Mark embeddings as checked for this session (called after successful download)
+ */
+export function markEmbeddingsChecked(): void {
+  sessionStorage.setItem(SESSION_CHECK_KEY, 'checked');
 }
 
 function parseEmbeddingsBinary(buffer: Uint8Array): EmbeddingIndex {

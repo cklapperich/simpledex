@@ -12,6 +12,24 @@
           "value": "application/json; charset=utf-8"
         }
       ]
+    },
+    {
+      "source": "/embeddings.bin",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/model/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     }
   ]
 }

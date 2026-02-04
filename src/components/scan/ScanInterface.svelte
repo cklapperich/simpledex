@@ -9,7 +9,6 @@
 	import { cardMap } from '../../stores/cards';
 
 	let cameraPreview: CameraPreview | null = $state(null);
-	let isPanelExpanded = $state(false);
 	let isCapturing = $state(false);
 
 	async function handleCapture() {
@@ -51,12 +50,9 @@
 		}
 	}
 
-	function togglePanel() {
-		isPanelExpanded = !isPanelExpanded;
-	}
 </script>
 
-<div class="scan-interface" class:panel-expanded={isPanelExpanded}>
+<div class="scan-interface">
 	<!-- Background layer: Camera Preview -->
 	<div class="camera-layer">
 		<CameraPreview bind:this={cameraPreview} />
@@ -72,11 +68,8 @@
 		<CaptureButton onclick={handleCapture} disabled={isCapturing} />
 	</div>
 
-	<!-- Side panel: Queue -->
-	<div class="queue-layer" class:expanded={isPanelExpanded}>
-		<button class="panel-toggle" onclick={togglePanel} aria-label="Toggle queue panel">
-			<span class="toggle-icon">{isPanelExpanded ? '›' : '‹'}</span>
-		</button>
+	<!-- Queue strip - always visible at bottom -->
+	<div class="queue-strip">
 		<QueuePanel />
 	</div>
 </div>
@@ -106,102 +99,24 @@
 		pointer-events: none;
 	}
 
-	/* Capture button - fixed at bottom center */
+	/* Capture button - fixed above queue */
 	.capture-layer {
 		position: fixed;
-		bottom: 2rem;
+		bottom: calc(100px + 1.5rem);
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 10;
 	}
 
-	/* Queue panel - side drawer */
-	.queue-layer {
+	/* Queue strip - always visible at bottom */
+	.queue-strip {
 		position: fixed;
-		top: 0;
+		bottom: 0;
+		left: 0;
 		right: 0;
-		height: 100%;
-		width: 80px;
+		height: 100px;
 		background-color: rgba(15, 15, 15, 0.95);
-		border-left: 1px solid rgba(255, 255, 255, 0.1);
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
 		z-index: 5;
-		transition: width 0.3s ease;
-		display: flex;
-		flex-direction: row;
-	}
-
-	.queue-layer.expanded {
-		width: 240px;
-	}
-
-	.panel-toggle {
-		position: absolute;
-		left: -24px;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 24px;
-		height: 48px;
-		background-color: rgba(15, 15, 15, 0.95);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-right: none;
-		border-radius: 8px 0 0 8px;
-		color: rgba(255, 255, 255, 0.7);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: color 0.2s ease;
-	}
-
-	.panel-toggle:hover {
-		color: rgba(255, 255, 255, 1);
-	}
-
-	.toggle-icon {
-		font-size: 1.25rem;
-		line-height: 1;
-	}
-
-	/* Mobile: Queue panel at bottom */
-	@media (max-width: 768px) {
-		.queue-layer {
-			top: auto;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			width: 100%;
-			height: 100px;
-			border-left: none;
-			border-top: 1px solid rgba(255, 255, 255, 0.1);
-			flex-direction: column;
-		}
-
-		.queue-layer.expanded {
-			width: 100%;
-			height: 200px;
-		}
-
-		.panel-toggle {
-			left: 50%;
-			top: -24px;
-			transform: translateX(-50%);
-			width: 48px;
-			height: 24px;
-			border-radius: 8px 8px 0 0;
-			border: 1px solid rgba(255, 255, 255, 0.1);
-			border-bottom: none;
-		}
-
-		.toggle-icon {
-			transform: rotate(90deg);
-		}
-
-		.capture-layer {
-			bottom: calc(100px + 2rem);
-		}
-
-		.panel-expanded .capture-layer {
-			bottom: calc(200px + 2rem);
-		}
 	}
 </style>

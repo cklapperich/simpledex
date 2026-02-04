@@ -12,6 +12,7 @@
     "migrate:execute": "tsx migrate-card-ids.ts --execute",
     "count": "git ls-files '*.ts' '*.svelte' '*.sql' '*.html' | xargs wc -l",
     "embeddings:build": "tsx scripts/build-embeddings.ts",
+    "model:download": "tsx scripts/download-model.ts",
     "test:inference": "tsx scripts/test-inferencing.ts",
     "poc:search": "tsx src/mobileclip-poc/index.ts --search",
     "poc:build": "tsx src/mobileclip-poc/index.ts --build"

@@ -3,6 +3,8 @@
 
   const isDownloading = $derived($scanStore.downloadProgress !== null);
   const hasError = $derived($scanStore.downloadError !== null);
+  const setupReason = $derived($scanStore.setupReason);
+  const isUpdate = $derived(setupReason === 'update');
 
   function handleDownload() {
     scanStore.startDownload();
@@ -38,10 +40,14 @@
     </div>
 
     <!-- Heading -->
-    <h1 class="text-2xl font-bold text-white mb-2">Enable Card Scanner</h1>
+    <h1 class="text-2xl font-bold text-white mb-2">
+      {isUpdate ? 'Update Available' : 'Enable Card Scanner'}
+    </h1>
 
     <!-- Size Estimate -->
-    <p class="text-gray-400 mb-6">~70MB download (one-time)</p>
+    <p class="text-gray-400 mb-6">
+      {isUpdate ? 'New scanner data available' : '~70MB download (one-time)'}
+    </p>
 
     <!-- Error State -->
     {#if hasError}
@@ -75,7 +81,7 @@
         onclick={handleDownload}
         class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-blue-600/25"
       >
-        Download Scanner
+        {isUpdate ? 'Update Scanner' : 'Download Scanner'}
       </button>
     {/if}
 

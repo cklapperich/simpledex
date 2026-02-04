@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { Card } from '../types';
-import { scannerService } from '../services/scanner';
+import { scannerService, type SetupStatus } from '../services/scanner';
 
 export interface QueueItem {
   id: string;
@@ -19,8 +19,11 @@ export interface ScanResult {
   }>;
 }
 
+export type SetupReason = 'download' | 'update' | null;
+
 interface ScanState {
   setupComplete: boolean;
+  setupReason: SetupReason;
   downloadProgress: number | null;
   downloadError: string | null;
   cameraPermission: 'pending' | 'granted' | 'denied';
@@ -31,6 +34,7 @@ interface ScanState {
 function createScanStore() {
   const initialState: ScanState = {
     setupComplete: false,
+    setupReason: null,
     downloadProgress: null,
     downloadError: null,
     cameraPermission: 'pending',
@@ -43,10 +47,34 @@ function createScanStore() {
   return {
     subscribe,
 
-    checkSetupStatus: async () => {
-      const isReady = await scannerService.isReady();
-      update(state => ({ ...state, setupComplete: isReady }));
-      return isReady;
+    /**
+     * Check setup status using ETag-based staleness detection
+     * Returns true if ready to scan (both assets fresh), false if download/update needed
+     */
+    checkSetupStatus: async (): Promise<boolean> => {
+      const status: SetupStatus = await scannerService.getSetupStatus();
+
+      const modelNeedsWork = status.model !== 'fresh';
+      const embeddingsNeedsWork = status.embeddings !== 'fresh';
+      const needsSetup = modelNeedsWork || embeddingsNeedsWork;
+
+      // Determine reason: if either is not-downloaded, it's a download; otherwise it's an update
+      let reason: SetupReason = null;
+      if (needsSetup) {
+        if (status.model === 'not-downloaded' || status.embeddings === 'not-downloaded') {
+          reason = 'download';
+        } else {
+          reason = 'update';
+        }
+      }
+
+      update(state => ({
+        ...state,
+        setupComplete: !needsSetup,
+        setupReason: reason
+      }));
+
+      return !needsSetup;
     },
 
     startDownload: async () => {
