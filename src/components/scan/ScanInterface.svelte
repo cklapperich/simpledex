@@ -4,49 +4,60 @@
 	import ViewfinderOverlay from './ViewfinderOverlay.svelte';
 	import CaptureButton from './CaptureButton.svelte';
 	import QueuePanel from './QueuePanel.svelte';
+	import InlineResults from './InlineResults.svelte';
 	import { scanStore } from '../../stores/scan';
 	import { scannerService } from '../../services/scanner';
 	import { cardMap } from '../../stores/cards';
+	import { collection } from '../../stores/collection';
 
 	let cameraPreview: CameraPreview | null = $state(null);
-	let isCapturing = $state(false);
+	let selectedItemId = $state<string | null>(null);
+
+	let selectedItem = $derived($scanStore.queueItems.find(item => item.id === selectedItemId) ?? null);
 
 	async function handleCapture() {
-		if (isCapturing || !cameraPreview) return;
+		if (!cameraPreview) return;
+		const blob = await cameraPreview.capture();
+		const id = scanStore.addToQueue(blob);
+		selectedItemId = id; // Select the newly captured item
+		processCapture(id, blob); // fire-and-forget
+	}
 
-		isCapturing = true;
-		let id: string | undefined;
-
+	async function processCapture(id: string, blob: Blob) {
+		scanStore.setItemStatus(id, 'processing');
 		try {
-			// Capture viewfinder region (original aspect ratio, no preprocessing)
-			const blob = await cameraPreview.capture();
-
-			// Add to queue (shows original card to user)
-			id = scanStore.addToQueue(blob);
-
-			// Set status to processing
-			scanStore.setItemStatus(id, 'processing');
-
-			// Find matches (preprocessing happens in scanner service)
 			const matches = await scannerService.findMatches(blob);
-
-			// Enrich matches with card data from cardMap
 			const cards = get(cardMap);
 			const enrichedMatches = matches.map(match => ({
 				cardId: match.cardId,
 				score: match.score,
 				card: cards.get(match.cardId)!
 			})).filter(match => match.card);
-
-			// Set result
 			scanStore.setResult(id, { matches: enrichedMatches });
 		} catch (error) {
 			console.error('Capture failed:', error);
-			if (id) {
-				scanStore.setItemStatus(id, 'error');
-			}
-		} finally {
-			isCapturing = false;
+			scanStore.setItemStatus(id, 'error');
+		}
+	}
+
+	function handleAdd(cardId: string) {
+		collection.increment(cardId);
+		if (selectedItemId) {
+			scanStore.removeFromQueue(selectedItemId);
+			// Select next completed item if any
+			const remaining = $scanStore.queueItems.filter(item => item.id !== selectedItemId);
+			const nextCompleted = remaining.find(item => item.status === 'complete' && item.result);
+			selectedItemId = nextCompleted?.id ?? null;
+		}
+	}
+
+	function handleReject() {
+		if (selectedItemId) {
+			scanStore.removeFromQueue(selectedItemId);
+			// Select next completed item if any
+			const remaining = $scanStore.queueItems.filter(item => item.id !== selectedItemId);
+			const nextCompleted = remaining.find(item => item.status === 'complete' && item.result);
+			selectedItemId = nextCompleted?.id ?? null;
 		}
 	}
 
@@ -65,12 +76,17 @@
 
 	<!-- UI layer: Capture Button -->
 	<div class="capture-layer">
-		<CaptureButton onclick={handleCapture} disabled={isCapturing} />
+		<CaptureButton onclick={handleCapture} />
+	</div>
+
+	<!-- Inline results panel - between capture button and queue -->
+	<div class="results-layer">
+		<InlineResults item={selectedItem} onAdd={handleAdd} onReject={handleReject} />
 	</div>
 
 	<!-- Queue strip - always visible at bottom -->
 	<div class="queue-strip">
-		<QueuePanel />
+		<QueuePanel bind:selectedItemId />
 	</div>
 </div>
 
@@ -99,13 +115,22 @@
 		pointer-events: none;
 	}
 
-	/* Capture button - fixed above queue */
+	/* Capture button - fixed above results panel */
 	.capture-layer {
 		position: fixed;
-		bottom: calc(100px + 1.5rem);
+		bottom: calc(100px + 180px + 2rem);
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 10;
+	}
+
+	/* Inline results - between capture button and queue */
+	.results-layer {
+		position: fixed;
+		bottom: calc(100px + 1rem);
+		left: 1rem;
+		right: 1rem;
+		z-index: 5;
 	}
 
 	/* Queue strip - always visible at bottom */
