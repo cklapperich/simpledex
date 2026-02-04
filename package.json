@@ -11,9 +11,8 @@
     "migrate:dry-run": "tsx migrate-card-ids.ts",
     "migrate:execute": "tsx migrate-card-ids.ts --execute",
     "count": "git ls-files '*.ts' '*.svelte' '*.sql' '*.html' | xargs wc -l",
-    "mobileclip:build": "tsx src/mobileclip-poc/index.ts --build",
-    "mobileclip:search": "tsx src/mobileclip-poc/index.ts --search",
-    "embeddings:build-gpu": "python3 scripts/build-embeddings.py"
+    "embeddings:build": "tsx scripts/build-embeddings.ts --build",
+    "embeddings:search": "tsx scripts/build-embeddings-ts.ts --search"
   },
   "keywords": [],
   "author": "",
