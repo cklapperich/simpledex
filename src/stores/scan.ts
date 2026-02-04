@@ -107,7 +107,7 @@ function createScanStore() {
       update(state => ({
         ...state,
         queueItems: state.queueItems.map(item =>
-          item.id === id ? { ...item, status: 'complete' as const, result } : item
+          item.id === id ? { ...item, status: 'complete' as const, result, error: undefined } : item
         )
       }));
     },

@@ -30,7 +30,11 @@ export async function downloadEmbeddings(onProgress?: (percent: number) => void)
     throw new Error(`Failed to fetch embeddings: ${response.status}`);
   }
 
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    throw new Error('Response body is null for embeddings download');
+  }
+
+  const reader = response.body.getReader();
   const contentLength = Number(response.headers.get('Content-Length') || 0);
 
   let received = 0;

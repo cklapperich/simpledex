@@ -16,13 +16,14 @@
 		if (isCapturing || !cameraPreview) return;
 
 		isCapturing = true;
+		let id: string | undefined;
 
 		try {
 			// Capture viewfinder region (original aspect ratio, no preprocessing)
 			const blob = await cameraPreview.capture();
 
 			// Add to queue (shows original card to user)
-			const id = scanStore.addToQueue(blob);
+			id = scanStore.addToQueue(blob);
 
 			// Set status to processing
 			scanStore.setItemStatus(id, 'processing');
@@ -42,6 +43,9 @@
 			scanStore.setResult(id, { matches: enrichedMatches });
 		} catch (error) {
 			console.error('Capture failed:', error);
+			if (id) {
+				scanStore.setItemStatus(id, 'error');
+			}
 		} finally {
 			isCapturing = false;
 		}
