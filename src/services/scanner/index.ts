@@ -22,6 +22,8 @@ export const scannerService = {
   },
 
   async findMatches(blob: Blob, topK = 5): Promise<ScanMatch[]> {
+    // Ensure model is loaded (singleton, returns immediately if already loaded)
+    await loadModel();
     const embedding = await getEmbedding(blob);
     const index = await getEmbeddings();
     return findSimilar(embedding, index, topK);

@@ -3,6 +3,9 @@
 Build embeddings database from local card images using GPU acceleration.
 Uses the same Xenova/mobileclip_s2 ONNX model as the browser for compatibility.
 
+IMPORTANT: This script reads settings from src/config/model-config.json to ensure
+preprocessing and inference match the browser transformers.js pipeline exactly.
+
 Usage:
     pip install torch onnxruntime-gpu huggingface_hub pillow tqdm
     python scripts/build-embeddings.py
@@ -48,15 +51,39 @@ except ImportError:
     sys.exit(1)
 
 PROJECT_ROOT = Path(__file__).parent.parent
+CONFIG_FILE = PROJECT_ROOT / "src" / "config" / "model-config.json"
 CARD_IMAGES_DIR = PROJECT_ROOT / "card-images"
-OUTPUT_FILE = PROJECT_ROOT / "public" / "embeddings.bin"
 CHECKPOINT_FILE = PROJECT_ROOT / "embeddings-checkpoint.json"
 
-# Must match TypeScript: Xenova/mobileclip_s2 with fp32
-MODEL_REPO = "Xenova/mobileclip_s2"
-MODEL_FILE = "onnx/vision_model.onnx"  # fp32 vision encoder
-EMBEDDING_DIM = 512
-IMAGE_SIZE = 256  # MobileCLIP-S2 input size
+# Load configuration from shared JSON file
+def load_config() -> dict:
+    """Load model configuration from shared JSON file."""
+    if not CONFIG_FILE.exists():
+        print(f"ERROR: Config file not found: {CONFIG_FILE}")
+        print("Please ensure src/config/model-config.json exists.")
+        sys.exit(1)
+
+    with open(CONFIG_FILE, "r") as f:
+        config = json.load(f)
+
+    print(f"Loaded config from: {CONFIG_FILE}")
+    return config
+
+
+# Load config at module level
+MODEL_CONFIG = load_config()
+
+# Extract settings from config
+MODEL_REPO = MODEL_CONFIG["modelId"]
+MODEL_FILE = MODEL_CONFIG["onnxModel"]
+EMBEDDING_DIM = MODEL_CONFIG["embeddingDim"]
+IMAGE_SIZE = MODEL_CONFIG["preprocessing"]["imageSize"]
+IMAGE_MEAN = np.array(MODEL_CONFIG["preprocessing"]["mean"], dtype=np.float32)
+IMAGE_STD = np.array(MODEL_CONFIG["preprocessing"]["std"], dtype=np.float32)
+CROP_METHOD = MODEL_CONFIG["preprocessing"].get("cropMethod", "center")
+POOLING = MODEL_CONFIG["inference"]["pooling"]
+NORMALIZE = MODEL_CONFIG["inference"]["normalize"]
+OUTPUT_FILE = PROJECT_ROOT / MODEL_CONFIG["output"]["embeddingsFile"]
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -150,26 +177,92 @@ def write_binary_embeddings(embeddings: Dict[str, List[float]], output_path: Pat
 def preprocess_image(image_path: Path) -> np.ndarray:
     """
     Preprocess image for MobileCLIP.
-    Must match transformers.js preprocessing.
+    Settings are read from model-config.json to match browser preprocessing.
+
+    Preprocessing steps:
+    1. Crop to square (using configured crop method: top, center, or none)
+    2. Resize to model input size (256x256)
+    3. Normalize with ImageNet mean/std
     """
     img = Image.open(image_path).convert("RGB")
+    width, height = img.size
 
-    # Resize to 256x256 (MobileCLIP-S2 input size)
+    # Step 1: Crop to square based on configured method
+    if CROP_METHOD == "top":
+        # Top-crop: take square from top of image (captures card artwork)
+        square_size = min(width, height)
+        left = (width - square_size) // 2  # Center horizontally
+        top = 0  # Start from top
+        img = img.crop((left, top, left + square_size, top + square_size))
+    elif CROP_METHOD == "center":
+        # Center-crop: take square from center of image
+        square_size = min(width, height)
+        left = (width - square_size) // 2
+        top = (height - square_size) // 2
+        img = img.crop((left, top, left + square_size, top + square_size))
+    # else: no crop, will stretch to square
+
+    # Step 2: Resize to model input size (256x256)
     img = img.resize((IMAGE_SIZE, IMAGE_SIZE), Image.Resampling.BILINEAR)
 
-    # Convert to numpy and normalize to [0, 1]
+    # Step 3: Convert to numpy and normalize to [0, 1]
     img_array = np.array(img, dtype=np.float32) / 255.0
 
-    # Normalize with ImageNet mean/std (CLIP standard)
-    mean = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
-    std = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
-    img_array = (img_array - mean) / std
+    # Step 4: Normalize with ImageNet mean/std (from config)
+    img_array = (img_array - IMAGE_MEAN) / IMAGE_STD
 
     # Convert to NCHW format (batch, channels, height, width)
     img_array = img_array.transpose(2, 0, 1)
     img_array = np.expand_dims(img_array, axis=0)
 
     return img_array
+
+
+def apply_pooling(outputs: np.ndarray, pooling: str) -> np.ndarray:
+    """
+    Apply pooling to model outputs to match transformers.js behavior.
+
+    transformers.js with pooling='mean' performs mean pooling across the
+    sequence dimension (axis=1) when output shape is (batch, seq_len, dim).
+
+    Args:
+        outputs: Raw model output, shape (batch, dim) or (batch, seq_len, dim)
+        pooling: Pooling strategy ('mean' or 'none')
+
+    Returns:
+        Pooled output with shape (batch, dim)
+    """
+    if pooling == "mean" and len(outputs.shape) == 3:
+        # Shape is (batch, seq_len, dim) - apply mean pooling across sequence
+        outputs = outputs.mean(axis=1)
+        print(f"  Applied mean pooling: {outputs.shape}")
+    elif len(outputs.shape) == 3:
+        # No pooling requested but have 3D output - just take first token (CLS)
+        outputs = outputs[:, 0, :]
+        print(f"  Took CLS token: {outputs.shape}")
+    # If shape is already (batch, dim), no pooling needed
+
+    return outputs
+
+
+def apply_normalization(outputs: np.ndarray, normalize: bool) -> np.ndarray:
+    """
+    Apply L2 normalization to embeddings.
+
+    Args:
+        outputs: Embeddings with shape (batch, dim)
+        normalize: Whether to apply L2 normalization
+
+    Returns:
+        Normalized embeddings
+    """
+    if normalize:
+        norms = np.linalg.norm(outputs, axis=1, keepdims=True)
+        # Avoid division by zero
+        norms = np.maximum(norms, 1e-12)
+        outputs = outputs / norms
+
+    return outputs
 
 
 def download_model() -> str:
@@ -187,7 +280,11 @@ def main():
     args = parser.parse_args()
 
     print("=== Embeddings Build Script (ONNX) ===\n")
-    print(f"Model: {MODEL_REPO} (fp32)")
+    print(f"Model: {MODEL_REPO} ({MODEL_CONFIG['dtype']})")
+    print(f"Image size: {IMAGE_SIZE}x{IMAGE_SIZE}")
+    print(f"Crop method: {CROP_METHOD}")
+    print(f"Pooling: {POOLING}")
+    print(f"Normalize: {NORMALIZE}")
     print(f"Providers: {EXECUTION_PROVIDERS}\n")
 
     # Scan for images
@@ -217,11 +314,27 @@ def main():
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-        session = ort.InferenceSession(
-            model_path,
-            sess_options=sess_options,
-            providers=EXECUTION_PROVIDERS
-        )
+        # Try to create session with preferred providers, fall back to CPU if needed
+        providers_to_use = EXECUTION_PROVIDERS
+        try:
+            session = ort.InferenceSession(
+                model_path,
+                sess_options=sess_options,
+                providers=providers_to_use
+            )
+        except Exception as e:
+            if 'CUDA' in str(e) or 'cuda' in str(e):
+                print(f"\n*************** EP Error ***************")
+                print(f"CUDA initialization failed: {e}")
+                print(f"\nFalling back to ['CPUExecutionProvider'] and retrying.\n")
+                providers_to_use = ['CPUExecutionProvider']
+                session = ort.InferenceSession(
+                    model_path,
+                    sess_options=sess_options,
+                    providers=providers_to_use
+                )
+            else:
+                raise
 
         input_name = session.get_inputs()[0].name
         output_name = session.get_outputs()[0].name
@@ -231,6 +344,7 @@ def main():
         batch_size = args.batch_size
         failed = 0
         checkpoint_counter = 0
+        shape_logged = False
 
         for i in tqdm(range(0, len(to_process), batch_size), desc="Processing"):
             batch = to_process[i : i + batch_size]
@@ -257,9 +371,17 @@ def main():
                 # Run inference
                 outputs = session.run([output_name], {input_name: batch_array})[0]
 
-                # Normalize embeddings (L2 norm)
-                norms = np.linalg.norm(outputs, axis=1, keepdims=True)
-                outputs = outputs / norms
+                # Log output shape once for debugging
+                if not shape_logged:
+                    print(f"\nRaw model output shape: {outputs.shape}")
+                    shape_logged = True
+
+                # Apply pooling to match transformers.js behavior
+                # This is the KEY FIX: transformers.js does mean pooling before normalization
+                outputs = apply_pooling(outputs, POOLING)
+
+                # Apply L2 normalization (after pooling, matching transformers.js)
+                outputs = apply_normalization(outputs, NORMALIZE)
 
                 # Store results
                 for j, card_id in enumerate(valid_cards):

@@ -43,6 +43,11 @@
     };
   });
 
+  /**
+   * Capture the viewfinder region from the camera feed.
+   * Returns the original card rectangle - no preprocessing applied.
+   * Preprocessing happens in the inference layer.
+   */
   export function capture(): Promise<Blob> {
     return new Promise((resolve, reject) => {
       if (!videoElement || !canvasElement) {
@@ -65,7 +70,6 @@
       const videoHeight = videoElement.videoHeight;
 
       // Calculate viewfinder frame dimensions (matching ViewfinderOverlay CSS)
-      // Height: min(105vw, 70vh), Width: min(75vw, 50vh)
       const frameHeight = Math.min(containerWidth * 1.05, containerHeight * 0.7);
       const frameWidth = Math.min(containerWidth * 0.75, containerHeight * 0.5);
 
@@ -82,12 +86,10 @@
       let videoOffsetY = 0;
 
       if (videoAspect > containerAspect) {
-        // Video is wider - scaled by height, overflows horizontally
         scale = videoHeight / containerHeight;
         const scaledVideoWidth = videoWidth / scale;
         videoOffsetX = (scaledVideoWidth - containerWidth) / 2 * scale;
       } else {
-        // Video is taller - scaled by width, overflows vertically
         scale = videoWidth / containerWidth;
         const scaledVideoHeight = videoHeight / scale;
         videoOffsetY = (scaledVideoHeight - containerHeight) / 2 * scale;
@@ -99,18 +101,29 @@
       const srcWidth = frameWidth * scale;
       const srcHeight = frameHeight * scale;
 
-      // Set canvas to 224x224 (model input size)
-      canvasElement.width = 224;
-      canvasElement.height = 224;
+      // Capture at reasonable resolution maintaining original aspect ratio
+      const maxDim = 512;
+      const aspect = srcWidth / srcHeight;
+      let canvasWidth: number;
+      let canvasHeight: number;
+      if (aspect > 1) {
+        canvasWidth = maxDim;
+        canvasHeight = Math.round(maxDim / aspect);
+      } else {
+        canvasHeight = maxDim;
+        canvasWidth = Math.round(maxDim * aspect);
+      }
 
-      // Draw the viewfinder region scaled to 224x224
+      canvasElement.width = canvasWidth;
+      canvasElement.height = canvasHeight;
+
+      // Draw the viewfinder region (original aspect ratio, no preprocessing)
       ctx.drawImage(
         videoElement,
         srcX, srcY, srcWidth, srcHeight,
-        0, 0, 224, 224
+        0, 0, canvasWidth, canvasHeight
       );
 
-      // Convert to JPEG Blob
       canvasElement.toBlob(
         (blob) => {
           if (blob) {

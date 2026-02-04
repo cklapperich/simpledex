@@ -18,16 +18,16 @@
 		isCapturing = true;
 
 		try {
-			// Capture image from camera
+			// Capture viewfinder region (original aspect ratio, no preprocessing)
 			const blob = await cameraPreview.capture();
 
-			// Add to queue and get ID
+			// Add to queue (shows original card to user)
 			const id = scanStore.addToQueue(blob);
 
 			// Set status to processing
 			scanStore.setItemStatus(id, 'processing');
 
-			// Find matches using scanner service
+			// Find matches (preprocessing happens in scanner service)
 			const matches = await scannerService.findMatches(blob);
 
 			// Enrich matches with card data from cardMap

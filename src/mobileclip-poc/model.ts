@@ -1,6 +1,6 @@
 import { pipeline } from '@huggingface/transformers';
-
-const MODEL_ID = 'Xenova/mobileclip_s2';
+import { MODEL_ID, DTYPE, INFERENCE_OPTIONS } from '../config/model-config';
+import { preprocessImage, logPreprocessingConfig } from '../lib/preprocessing';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let modelInstance: any = null;
@@ -13,9 +13,11 @@ export async function loadModel(): Promise<any> {
     return modelInstance;
   }
 
-  console.log(`Loading model: ${MODEL_ID} (fp32)...`);
+  console.log(`Loading model: ${MODEL_ID} (${DTYPE})...`);
+  logPreprocessingConfig();
+
   modelInstance = await pipeline('image-feature-extraction', MODEL_ID, {
-    dtype: 'fp32' // Explicit: must match all embedding scripts
+    dtype: DTYPE
   });
   console.log('Model loaded successfully');
 
@@ -36,9 +38,19 @@ export function getModelId(): string {
  */
 export async function getImageEmbedding(imagePath: string): Promise<number[]> {
   const model = await loadModel();
-  const output = await model(imagePath, { pooling: 'mean', normalize: true });
+
+  // Use shared preprocessing
+  const processedImage = await preprocessImage(imagePath);
+
+  // Run inference
+  const output = await model(processedImage, INFERENCE_OPTIONS);
 
   // Convert Tensor to regular array
   const embedding = Array.from(output.data as Float32Array);
-  return embedding;
+
+  // L2 normalize
+  const norm = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
+  const normalized = embedding.map(v => v / Math.max(norm, 1e-12));
+
+  return normalized;
 }
