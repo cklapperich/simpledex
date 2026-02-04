@@ -16,10 +16,11 @@ const MODEL_CONFIG_PATH = '/model/config.json';
  * Must be called before loading the model
  */
 function configureModelSource(): void {
-  // Point to our server
-  // Default template is '{model}/resolve/{revision}' - we simplify to just '{model}'
+  // Point to our server and map the HuggingFace path structure to our /model/ directory
+  // HuggingFace URL pattern: {remoteHost}/{model}/resolve/{revision}/{filename}
+  // We map 'simpledex/scanner' to our /model/ path
   env.remoteHost = window.location.origin;
-  env.remotePathTemplate = '{model}';
+  env.remotePathTemplate = 'model';  // Ignores {model} and {revision}, just uses /model/
 }
 
 // IndexedDB for storing model ETag
@@ -56,8 +57,8 @@ export async function loadModel(onProgress?: (percent: number) => void): Promise
   // Configure to load from our server
   configureModelSource();
 
-  // Model ID 'model' + template '{model}' = loads from /model/
-  modelInstance = await pipeline('image-feature-extraction', 'model', {
+  // Use original HuggingFace model ID (passes validation) but load from our server via remoteHost/remotePathTemplate
+  modelInstance = await pipeline('image-feature-extraction', 'Xenova/mobileclip_s2', {
     dtype: DTYPE,
     progress_callback: (data: { status: string; progress?: number }) => {
       if (data.status === 'progress' && onProgress && data.progress !== undefined) {
