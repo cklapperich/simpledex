@@ -3,20 +3,24 @@
 
   let { onSearch, initialValue = '' }: { onSearch: (query: string) => void; initialValue?: string } = $props();
 
-  let inputValue = $state(initialValue);
+  let inputValue = $state('');
   let inputElement = $state<HTMLInputElement>();
-  let lastInitialValue = $state(initialValue);
+  let lastInitialValue = $state('');
+  let mounted = $state(false);
 
-  // React to initialValue changes from parent
+  // Sync inputValue with initialValue prop changes
   $effect(() => {
     if (initialValue !== lastInitialValue) {
       inputValue = initialValue;
       lastInitialValue = initialValue;
-      onSearch(initialValue);
+      if (mounted) {
+        onSearch(initialValue);
+      }
     }
   });
 
   onMount(() => {
+    mounted = true;
     if (initialValue) {
       onSearch(initialValue);
     }

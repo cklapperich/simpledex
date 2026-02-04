@@ -12,7 +12,13 @@
     "migrate:execute": "tsx migrate-card-ids.ts --execute",
     "count": "git ls-files '*.ts' '*.svelte' '*.sql' '*.html' | xargs wc -l",
     "mobileclip:build": "tsx src/mobileclip-poc/index.ts --build",
-    "mobileclip:search": "tsx src/mobileclip-poc/index.ts --search"
+    "mobileclip:search": "tsx src/mobileclip-poc/index.ts --search",
+    "embeddings:build": "tsx scripts/build-embeddings.ts",
+    "embeddings:resume": "tsx scripts/resume-embeddings.ts",
+    "embeddings:verify": "tsx scripts/verify-embeddings.ts",
+    "embeddings:upload": "tsx scripts/build-embeddings.ts --upload",
+    "embeddings:update": "tsx scripts/update-embeddings.ts",
+    "embeddings:build-gpu": "python3 scripts/build-embeddings.py"
   },
   "keywords": [],
   "author": "",

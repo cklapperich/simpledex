@@ -1,0 +1,7 @@
+# GPU-accelerated embeddings build (uses same ONNX model as browser)
+torch
+onnxruntime-gpu  # For NVIDIA GPU, or use 'onnxruntime' for CPU only
+huggingface_hub
+pillow
+tqdm
+numpy

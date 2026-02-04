@@ -13,8 +13,10 @@ export async function loadModel(): Promise<any> {
     return modelInstance;
   }
 
-  console.log(`Loading model: ${MODEL_ID}...`);
-  modelInstance = await pipeline('image-feature-extraction', MODEL_ID);
+  console.log(`Loading model: ${MODEL_ID} (fp32)...`);
+  modelInstance = await pipeline('image-feature-extraction', MODEL_ID, {
+    dtype: 'fp32' // Explicit: must match all embedding scripts
+  });
   console.log('Model loaded successfully');
 
   return modelInstance;

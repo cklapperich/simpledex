@@ -77,21 +77,22 @@ function parseEmbeddingsBinary(buffer: Uint8Array): EmbeddingIndex {
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   let offset = 0;
 
-  // Header: 4 bytes (uint32 card count)
+  // Header: 4 bytes (uint32 card count) + 4 bytes (uint32 embedding dim)
   const cardCount = view.getUint32(offset, true);
+  offset += 4;
+  const embeddingDim = view.getUint32(offset, true);
   offset += 4;
 
   const cardIds: string[] = [];
-  const embeddingDim = 512;
   const totalFloats = cardCount * embeddingDim;
   const embeddings = new Float32Array(totalFloats);
 
   const decoder = new TextDecoder('utf-8');
 
   for (let i = 0; i < cardCount; i++) {
-    // 4 bytes (uint32 cardId length)
-    const cardIdLength = view.getUint32(offset, true);
-    offset += 4;
+    // 1 byte (uint8 cardId length)
+    const cardIdLength = view.getUint8(offset);
+    offset += 1;
 
     // N bytes (cardId string, UTF-8)
     const cardIdBytes = buffer.slice(offset, offset + cardIdLength);
@@ -99,7 +100,7 @@ function parseEmbeddingsBinary(buffer: Uint8Array): EmbeddingIndex {
     cardIds.push(cardId);
     offset += cardIdLength;
 
-    // 2048 bytes (512 x float32 embedding)
+    // embeddingDim x float32 embedding
     for (let j = 0; j < embeddingDim; j++) {
       embeddings[i * embeddingDim + j] = view.getFloat32(offset, true);
       offset += 4;

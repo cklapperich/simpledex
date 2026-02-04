@@ -13,6 +13,7 @@ export async function loadModel(onProgress?: (percent: number) => void): Promise
   if (modelInstance) return;
 
   modelInstance = await pipeline('image-feature-extraction', MODEL_ID, {
+    dtype: 'fp32', // Explicit: must match build-embeddings scripts
     progress_callback: (data: { status: string; progress?: number }) => {
       if (data.status === 'progress' && onProgress && data.progress !== undefined) {
         onProgress(Math.round(data.progress));
