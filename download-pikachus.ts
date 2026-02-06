@@ -25,13 +25,10 @@ const CARDS_FILE = path.join(__dirname, 'public', 'cards-western.json');
 const CONCURRENCY = 15;
 
 /**
- * Convert tcgdex:// protocol URL to actual HTTP URL (high quality)
+ * Convert tcgdex URL to high quality version
  */
-function resolveTcgdexUrl(url: string): string {
-  if (!url.startsWith('tcgdex://')) return url;
-  const parts = url.replace('tcgdex://', '').split('/');
-  const [seriesId, setId, number] = parts;
-  return `https://assets.tcgdex.net/en/${seriesId}/${setId}/${number}/high.webp`;
+function toHighResTcgdex(url: string): string {
+  return url.replace('/low.webp', '/high.webp');
 }
 
 /**
@@ -51,7 +48,7 @@ function getBestImageUrl(images: CardImage[]): string | null {
   if (ptcg) return toHighRes(ptcg.url);
 
   const tcgdex = images.find(img => img.source === 'tcgdex');
-  if (tcgdex) return resolveTcgdexUrl(tcgdex.url);
+  if (tcgdex) return toHighResTcgdex(tcgdex.url);
 
   return null;
 }

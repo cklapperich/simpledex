@@ -67,6 +67,7 @@ interface MultiLangCard {
     value?: string;
   }>;
   retreatCost?: string[];
+  evolveFrom?: string;
   flavorText?: string;  // Pokedex flavor text for Pokemon
   rules?: string[];     // Trainer/Energy effect text
   illustrator?: string;
@@ -242,10 +243,10 @@ function buildImageArray(tcgdexCard: MultiLangCard, ptcgCard?: PokemonTCGCard): 
     });
   }
 
-  // Backup: tcgdex (use special protocol for language-specific URLs)
+  // Backup: tcgdex (store actual URL directly)
   if (tcgdexCard.seriesId && tcgdexCard.setId && tcgdexCard.number) {
     images.push({
-      url: `tcgdex://${tcgdexCard.seriesId}/${tcgdexCard.setId}/${tcgdexCard.number}`,
+      url: `https://assets.tcgdex.net/en/${tcgdexCard.seriesId}/${tcgdexCard.setId}/${tcgdexCard.number}/low.webp`,
       source: 'tcgdex',
       size: 'low'
     });
@@ -283,6 +284,10 @@ function mergeCards(tcgdexCard: MultiLangCard, duplicateCard: MultiLangCard): vo
 
   if (!tcgdexCard.retreatCost && duplicateCard.retreatCost) {
     tcgdexCard.retreatCost = duplicateCard.retreatCost;
+  }
+
+  if (!tcgdexCard.evolveFrom && duplicateCard.evolveFrom) {
+    tcgdexCard.evolveFrom = duplicateCard.evolveFrom;
   }
 
   // Merge images: prioritize pokemontcg-io sources, avoid duplicates by URL
@@ -437,6 +442,8 @@ async function processDirectory(
       const trainerTypeMatch = fileContent.match(/trainerType:\s*"([^"]+)"/);
       const energyTypeMatch = fileContent.match(/energyType:\s*"([^"]+)"/);
       const illustratorMatch = fileContent.match(/illustrator:\s*"([^"]+)"/);
+      const evolveFromMatch = fileContent.match(new RegExp(`evolveFrom:\\s*{[^}]*en:\\s*"([^"]+)"`)) ||
+                              fileContent.match(/evolveFrom:\s*{[^}]*:\s*"([^"]+)"/);
 
       // Extract types array
       const typesMatch = fileContent.match(/types:\s*\[([\s\S]*?)\]/);
@@ -451,31 +458,37 @@ async function processDirectory(
       // Extract abilities
       const abilities = extractAbilities(fileContent, primaryLang);
 
-      // Extract weaknesses
-      const weaknessesMatch = fileContent.match(/weaknesses:\s*\[([\s\S]*?)\n\t\],/);
+      // Extract weaknesses (handle multiple entries and varying formats)
+      const weaknessesMatch = fileContent.match(/weaknesses:\s*\[([\s\S]*?)\]/);
       let weaknesses: Array<{ type: string; value?: string }> = [];
       if (weaknessesMatch) {
-        const weaknessTypeMatch = weaknessesMatch[1].match(/type:\s*"([^"]+)"/);
-        const weaknessValueMatch = weaknessesMatch[1].match(/value:\s*"([^"]+)"/);
-        if (weaknessTypeMatch) {
-          weaknesses.push({
-            type: weaknessTypeMatch[1],
-            value: weaknessValueMatch ? weaknessValueMatch[1] : undefined
-          });
+        const weaknessBlocks = weaknessesMatch[1].split(/}\s*,\s*{/);
+        for (const block of weaknessBlocks) {
+          const typeMatch = block.match(/type:\s*"([^"]+)"/);
+          const valueMatch = block.match(/value:\s*"([^"]+)"/);
+          if (typeMatch) {
+            weaknesses.push({
+              type: typeMatch[1],
+              value: valueMatch ? valueMatch[1] : undefined
+            });
+          }
         }
       }
 
-      // Extract resistances
-      const resistancesMatch = fileContent.match(/resistances:\s*\[([\s\S]*?)\n\t\],/);
+      // Extract resistances (handle multiple entries and varying formats)
+      const resistancesMatch = fileContent.match(/resistances:\s*\[([\s\S]*?)\]/);
       let resistances: Array<{ type: string; value?: string }> = [];
       if (resistancesMatch) {
-        const resistanceTypeMatch = resistancesMatch[1].match(/type:\s*"([^"]+)"/);
-        const resistanceValueMatch = resistancesMatch[1].match(/value:\s*"([^"]+)"/);
-        if (resistanceTypeMatch) {
-          resistances.push({
-            type: resistanceTypeMatch[1],
-            value: resistanceValueMatch ? resistanceValueMatch[1] : undefined
-          });
+        const resistanceBlocks = resistancesMatch[1].split(/}\s*,\s*{/);
+        for (const block of resistanceBlocks) {
+          const typeMatch = block.match(/type:\s*"([^"]+)"/);
+          const valueMatch = block.match(/value:\s*"([^"]+)"/);
+          if (typeMatch) {
+            resistances.push({
+              type: typeMatch[1],
+              value: valueMatch ? valueMatch[1] : undefined
+            });
+          }
         }
       }
 
@@ -526,6 +539,7 @@ async function processDirectory(
         weaknesses: weaknesses.length > 0 ? weaknesses : undefined,
         resistances: resistances.length > 0 ? resistances : undefined,
         retreatCost,
+        evolveFrom: evolveFromMatch ? evolveFromMatch[1] : undefined,
         seriesId,
         setId
       };
@@ -537,6 +551,21 @@ async function processDirectory(
       // Fill in missing subtypes from pokemon-tcg-data
       if (ptcgCard && card.subtypes.length === 0 && ptcgCard.subtypes && ptcgCard.subtypes.length > 0) {
         card.subtypes = ptcgCard.subtypes;
+      }
+
+      // Fill in missing evolveFrom from pokemon-tcg-data
+      if (!card.evolveFrom && ptcgCard?.evolvesFrom) {
+        card.evolveFrom = ptcgCard.evolvesFrom;
+      }
+
+      // Fill in missing weaknesses from pokemon-tcg-data
+      if ((!card.weaknesses || card.weaknesses.length === 0) && ptcgCard?.weaknesses && ptcgCard.weaknesses.length > 0) {
+        card.weaknesses = ptcgCard.weaknesses;
+      }
+
+      // Fill in missing retreat cost from pokemon-tcg-data
+      if (!card.retreatCost && ptcgCard?.retreatCost && ptcgCard.retreatCost.length > 0) {
+        card.retreatCost = ptcgCard.retreatCost;
       }
 
       // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
