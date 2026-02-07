@@ -28,24 +28,39 @@ export function exportToPTCGO(deck: Deck, cards: Map<string, Card>): string {
 /**
  * Import deck from PTCGO format
  * Parses lines like: * 1 Professor's Research Prismatic Evolutions 122
+ * Also supports ptcgoCode format: * 2 Charizard TEU 14
  * Returns: { cardId -> quantity }
  */
 export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Record<string, number> {
   const result: Record<string, number> = {};
 
-  // Build set of known set names (lowercase for matching)
+  // Build set of known set names and ptcgoCodes (lowercase for matching)
   const knownSets = new Set<string>();
+  const knownPtcgoCodes = new Set<string>();
   for (const card of cards.values()) {
     if (card.set) knownSets.add(card.set.toLowerCase());
+    if (card.ptcgoCode) knownPtcgoCodes.add(card.ptcgoCode.toLowerCase());
   }
 
-  // Build lookup by name|set|number
+  // Build lookup by name|set|number (for full set names)
   const cardsByNameSetNumber = new Map<string, Card>();
+  // Build lookup by name|ptcgoCode|number
+  const cardsByNamePtcgoNumber = new Map<string, Card>();
+
   for (const card of cards.values()) {
     const name = getCardName(card).toLowerCase();
     const set = (card.set || '').toLowerCase();
-    const key = `${name}|${set}|${card.number}`;
-    cardsByNameSetNumber.set(key, card);
+    const ptcgoCode = (card.ptcgoCode || '').toLowerCase();
+
+    // Add both lookups
+    if (set) {
+      const key = `${name}|${set}|${card.number}`;
+      cardsByNameSetNumber.set(key, card);
+    }
+    if (ptcgoCode) {
+      const key = `${name}|${ptcgoCode}|${card.number}`;
+      cardsByNamePtcgoNumber.set(key, card);
+    }
   }
 
   for (const line of ptcgoText.split('\n')) {
@@ -55,7 +70,7 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
     // Match: * {qty} {rest...} {number}
     const match = trimmed.match(/^\*\s+(\d+)\s+(.+)\s+([A-Za-z0-9-]+)$/);
     if (!match) {
-      console.warn(`Could not parse line: ${trimmed}`);
+      // Silently skip non-card lines (headers, blank lines, etc.)
       continue;
     }
 
@@ -63,13 +78,14 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
     const quantity = parseInt(qtyStr, 10);
     if (quantity <= 0) continue;
 
-    // Try to find a known set name in 'middle' (from the end)
-    // middle = "Professor's Research Prismatic Evolutions"
-    // We need to split into cardName="Professor's Research" and setName="Prismatic Evolutions"
+    // Try to find a known set name or ptcgoCode in 'middle' (from the end)
+    // middle = "Professor's Research Prismatic Evolutions" or "Charizard TEU"
+    // We need to split into cardName and setName/ptcgoCode
 
     let foundCard: Card | undefined;
     const middleLower = middle.toLowerCase();
 
+    // Try full set names first
     for (const setName of knownSets) {
       if (middleLower.endsWith(setName)) {
         const cardName = middle.slice(0, -(setName.length)).trim();
@@ -78,6 +94,21 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
         if (card) {
           foundCard = card;
           break;
+        }
+      }
+    }
+
+    // If not found, try ptcgoCodes
+    if (!foundCard) {
+      for (const ptcgoCode of knownPtcgoCodes) {
+        if (middleLower.endsWith(ptcgoCode)) {
+          const cardName = middle.slice(0, -(ptcgoCode.length)).trim();
+          const key = `${cardName.toLowerCase()}|${ptcgoCode}|${cardNumber}`;
+          const card = cardsByNamePtcgoNumber.get(key);
+          if (card) {
+            foundCard = card;
+            break;
+          }
         }
       }
     }

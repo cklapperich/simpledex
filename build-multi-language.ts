@@ -200,6 +200,31 @@ function extractAbilities(fileContent: string, primaryLang: string): Array<{
 }
 
 /**
+ * Extract rules/effect text from trainer and energy cards (root-level effect field)
+ * TCGdex stores this as: effect: { en: "...", fr: "...", ... }
+ */
+function extractRules(fileContent: string, primaryLang: string): string[] | undefined {
+  // Match root-level effect field (one tab indent, not nested in attacks/abilities)
+  const effectMatch = fileContent.match(/\n\teffect:\s*\{([^}]+)\}/);
+  if (!effectMatch) return undefined;
+
+  const effectBlock = effectMatch[1];
+
+  // Extract primary language text first, fallback to any language
+  const langMatch = effectBlock.match(new RegExp(`${primaryLang}:\\s*"([^"]+)"`));
+  if (langMatch) {
+    return [langMatch[1]];
+  }
+
+  const anyMatch = effectBlock.match(/:\s*"([^"]+)"/);
+  if (anyMatch) {
+    return [anyMatch[1]];
+  }
+
+  return undefined;
+}
+
+/**
  * Try to find pokemon-tcg-data card with multiple matching strategies
  */
 function findPokemonTCGCard(
@@ -288,6 +313,10 @@ function mergeCards(tcgdexCard: MultiLangCard, duplicateCard: MultiLangCard): vo
 
   if (!tcgdexCard.evolveFrom && duplicateCard.evolveFrom) {
     tcgdexCard.evolveFrom = duplicateCard.evolveFrom;
+  }
+
+  if ((!tcgdexCard.rules || tcgdexCard.rules.length === 0) && duplicateCard.rules) {
+    tcgdexCard.rules = duplicateCard.rules;
   }
 
   // Merge images: prioritize pokemontcg-io sources, avoid duplicates by URL
@@ -458,6 +487,9 @@ async function processDirectory(
       // Extract abilities
       const abilities = extractAbilities(fileContent, primaryLang);
 
+      // Extract rules (trainer/energy effect text)
+      const rules = extractRules(fileContent, primaryLang);
+
       // Extract weaknesses (handle multiple entries and varying formats)
       const weaknessesMatch = fileContent.match(/weaknesses:\s*\[([\s\S]*?)\]/);
       let weaknesses: Array<{ type: string; value?: string }> = [];
@@ -540,6 +572,7 @@ async function processDirectory(
         resistances: resistances.length > 0 ? resistances : undefined,
         retreatCost,
         evolveFrom: evolveFromMatch ? evolveFromMatch[1] : undefined,
+        rules,
         seriesId,
         setId
       };
@@ -566,6 +599,11 @@ async function processDirectory(
       // Fill in missing retreat cost from pokemon-tcg-data
       if (!card.retreatCost && ptcgCard?.retreatCost && ptcgCard.retreatCost.length > 0) {
         card.retreatCost = ptcgCard.retreatCost;
+      }
+
+      // Fill in missing rules from pokemon-tcg-data
+      if ((!card.rules || card.rules.length === 0) && ptcgCard?.rules && ptcgCard.rules.length > 0) {
+        card.rules = ptcgCard.rules;
       }
 
       // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
