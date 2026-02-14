@@ -1,24 +1,21 @@
 import { supabase } from '../lib/supabase'
 import type { Deck } from '../types'
 import type { DeckRow } from '../lib/supabaseTypes'
+import { DECK_TCG } from '../constants'
 
 interface SyncResult {
   success: boolean
   error?: string
 }
 
-interface DeckWithTimestamp extends Deck {
-  updated_at?: string
-}
-
 /**
  * Load all decks from Supabase for a user
  */
-export async function loadDecksFromSupabase(userId: string): Promise<Record<string, DeckWithTimestamp>> {
+export async function loadDecksFromSupabase(userId: string): Promise<Record<string, Deck>> {
   try {
     const { data, error } = await supabase
       .from('decks')
-      .select('id, name, cards, updated_at')
+      .select('id, name, cards, strategy, updated_at')
       .eq('user_id', userId)
 
     if (error) {
@@ -26,14 +23,15 @@ export async function loadDecksFromSupabase(userId: string): Promise<Record<stri
       return {}
     }
 
-    const decks: Record<string, DeckWithTimestamp> = {}
+    const decks: Record<string, Deck> = {}
     if (data) {
       for (const row of data as DeckRow[]) {
         decks[row.id] = {
           id: row.id,
           name: row.name,
           cards: row.cards || {},
-          updated_at: row.updated_at
+          strategy: row.strategy || '',
+          TCG: DECK_TCG
         }
       }
     }
@@ -61,6 +59,8 @@ export async function saveDeckToSupabase(
           user_id: userId,
           name: deck.name,
           cards: deck.cards,
+          strategy: deck.strategy || '',
+          TCG: DECK_TCG,
           updated_at: new Date().toISOString()
         },
         { onConflict: 'id' }
@@ -141,25 +141,10 @@ export async function mergeDecks(
         decksToUpload.push(localDeck)
       } else if (!localDeck && remoteDeck) {
         // Only exists remotely - keep remote
-        merged[deckId] = {
-          id: remoteDeck.id,
-          name: remoteDeck.name,
-          cards: remoteDeck.cards
-        }
+        merged[deckId] = remoteDeck
       } else if (localDeck && remoteDeck) {
-        // Exists in both - compare timestamps
-        // Local decks don't have timestamps, so we'll use a heuristic:
-        // If we can't determine, prefer remote (it's persisted)
-        // In practice, local decks created during this session won't have remote copies yet
-        const remoteTime = remoteDeck.updated_at ? new Date(remoteDeck.updated_at).getTime() : 0
-
-        // Since local decks don't track updated_at, we'll prefer remote for conflicts
-        // This is safer - remote data is the source of truth once synced
-        merged[deckId] = {
-          id: remoteDeck.id,
-          name: remoteDeck.name,
-          cards: remoteDeck.cards
-        }
+        // Exists in both - prefer remote (source of truth once synced)
+        merged[deckId] = remoteDeck
       }
     }
 

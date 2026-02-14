@@ -115,7 +115,9 @@ export interface ImportError {
 export interface Deck {
   id: string;
   name: string;
-  cards: Record<string, number>; // cardId -> quantity (same as Collection)
+  cards: Record<string, number>;
+  strategy?: string;
+  TCG: string
 }
 
 // Deck validation result

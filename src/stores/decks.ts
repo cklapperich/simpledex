@@ -184,6 +184,23 @@ function createDecksStore() {
       }
     },
 
+    setStrategy: (deckId: string, strategy: string): void => {
+      let updatedDeck: Deck | null = null;
+
+      update(decks => {
+        if (!decks[deckId]) return decks;
+        updatedDeck = { ...decks[deckId], strategy };
+        return {
+          ...decks,
+          [deckId]: updatedDeck
+        };
+      });
+
+      if (currentUserId && updatedDeck) {
+        syncDeckToSupabase(updatedDeck);
+      }
+    },
+
     addCardToDeck: (deckId: string, cardId: string): void => {
       let updatedDeck: Deck | null = null;
 

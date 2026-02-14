@@ -30,8 +30,10 @@ export interface DeckRow {
   user_id: string
   name: string
   cards: Record<string, number>
+  strategy?: string
   created_at: string
   updated_at: string
+  TCG: string
 }
 
 export type Json =
@@ -132,6 +134,7 @@ export type Database = {
           user_id: string
           name: string
           cards: Record<string, number>
+          strategy?: string
           created_at: string
           updated_at: string
         }
@@ -140,6 +143,7 @@ export type Database = {
           user_id: string
           name?: string
           cards?: Record<string, number>
+          strategy?: string
           created_at?: string
           updated_at?: string
         }
@@ -148,6 +152,7 @@ export type Database = {
           user_id?: string
           name?: string
           cards?: Record<string, number>
+          strategy?: string
           created_at?: string
           updated_at?: string
         }

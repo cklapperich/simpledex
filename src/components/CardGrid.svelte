@@ -4,9 +4,11 @@
 
   interface Props {
     cards: Card[];
+    hasMore?: boolean;
+    onLoadMore?: () => void;
   }
 
-  let { cards }: Props = $props();
+  let { cards, hasMore = false, onLoadMore }: Props = $props();
 </script>
 
 {#if cards.length === 0}
@@ -26,4 +28,14 @@
       <CardItem {card} />
     {/each}
   </div>
+  {#if hasMore && onLoadMore}
+    <div class="flex justify-center py-6">
+      <button
+        onclick={onLoadMore}
+        class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+      >
+        Load More ({cards.length} shown)
+      </button>
+    </div>
+  {/if}
 {/if}

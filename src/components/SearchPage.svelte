@@ -31,16 +31,16 @@
   // Determine localStorage key for filters (reactive to collectionOnly changes)
   const filterKey = $derived(collectionOnly ? 'collection-filters' : 'search-filters');
 
-  // Default search to demonstrate filter syntax (only for main search, not collection)
-  const DEFAULT_SEARCH = 'rotom';
   let searchQuery = $state('');
+  let visibleCount = $state(60);
 
-  // Reset search query when switching modes
+  // Reset search query and pagination when switching modes
   $effect(() => {
     // Track collectionOnly to trigger reset on mode change
     const _ = collectionOnly;
-    // Always reset to empty - the default search behavior is handled in displayedCards
+    // Always reset to empty
     searchQuery = '';
+    visibleCount = 60;
   });
   let modernOnly = $state(false);
   let indexReady = $state(false);
@@ -52,15 +52,12 @@
   // Set context so CardItem can access mode - pass getter function to make it reactive
   setContext('mode', () => mode);
 
-  // Display cards: first 50 if no search, all matching if searching
-  const displayedCards = $derived.by(() => {
+  // All filtered cards (before pagination)
+  const allFilteredCards = $derived.by(() => {
     let cards: Card[] = [];
 
-    // Use DEFAULT_SEARCH when search bar is empty and not in collection mode
-    const effectiveQuery = (!collectionOnly && searchQuery === '') ? DEFAULT_SEARCH : searchQuery;
-
     // Parse the search query to extract structured filters (artist:value, etc.)
-    const parsedQuery = parseSearchQuery(effectiveQuery);
+    const parsedQuery = parseSearchQuery(searchQuery);
     const searchText = parsedQuery.text;
     const searchFilters = parsedQuery.filters;
     const hasSearchFilters = hasFilters(searchFilters);
@@ -93,15 +90,11 @@
         });
       }
     } else {
-      // Search mode: regular search behavior
+      // Search mode
       const hasTextSearch = searchText.length > 0;
 
-      if (!hasTextSearch && !hasSearchFilters) {
-        // No search and no filters - show Base Set by default
-        const baseSet = $setMap.get('base set');
-        cards = baseSet ? [...baseSet] : $allCards.slice(0, 50);
-      } else if (!hasTextSearch && hasSearchFilters) {
-        // Filter-only query (e.g., "artist:ken") - search all cards
+      if (!hasTextSearch) {
+        // No text search - start from all cards (filters will narrow down)
         cards = [...$allCards];
       } else {
         // Has text search
@@ -160,9 +153,18 @@
     return cards;
   });
 
+  // Paginated cards for display
+  const displayedCards = $derived(allFilteredCards.slice(0, visibleCount));
+  const hasMore = $derived(visibleCount < allFilteredCards.length);
+
+  function loadMore() {
+    visibleCount += 60;
+  }
+
   // Search handler
   function handleSearch(query: string) {
     searchQuery = query;
+    visibleCount = 60;
   }
 
   // Filter toggle handler
@@ -174,6 +176,7 @@
       newFilters.add(filter);
     }
     activeFilters = newFilters;
+    visibleCount = 60;
   }
 
   $effect(() => {
@@ -371,7 +374,7 @@
           <p class="text-gray-600">Try adjusting your search or filters</p>
         </div>
       {:else}
-        <CardGrid cards={displayedCards} />
+        <CardGrid cards={displayedCards} {hasMore} onLoadMore={loadMore} />
       {/if}
     {/if}
   </div>

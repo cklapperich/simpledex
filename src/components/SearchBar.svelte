@@ -45,7 +45,7 @@
     bind:value={inputValue}
     onkeydown={handleKeyDown}
     type="text"
-    placeholder="rotom set:BS -has:rule_box artist:arita type:electric text:damage flavor:pokemon"
+    placeholder="Search by name, set, or use filters like type:fire artist:arita has:rule_box"
     aria-label="Search cards"
     class="w-full px-6 py-4 text-lg rounded-xl border-2 border-gray-200
            focus:border-teal-600 focus:ring-2 focus:ring-teal-600 focus:outline-none

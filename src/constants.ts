@@ -16,6 +16,8 @@ export const DEFAULT_LANGUAGE = 'en';
 
 export const MAX_CARD_QUANTITY = 99;
 
+export const DECK_TCG = 'Pokemon';
+
 export const MODERN_SERIES = [
   'Black & White',
   'XY',

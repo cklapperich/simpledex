@@ -30,23 +30,34 @@
   let mobileView = $state<'browse' | 'deck'>('browse');
   let leftPanelTab = $state<'browse' | 'fullDeck'>('browse');
   let glcWarning = $state<string | null>(null);
+  let showAllCards = $state(false);
+  let strategyText = $state('');
+  let strategyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const currentDeck = $derived($activeDeckId ? $decks[$activeDeckId] : null);
   const validation = $derived(currentDeck ? validateDeck(currentDeck, $cardMap) : { isValid: true, cardCount: 0, warnings: [] });
   const glcValidation = $derived(currentDeck && $glcMode ? validateDeckGLC(currentDeck, $cardMap) : []);
   const totalDeckCards = $derived(currentDeck ? Object.values(currentDeck.cards).reduce((sum, qty) => sum + qty, 0) : 0);
 
-  // Filter collection cards for display
+  // Filter cards for display
   const displayedCards = $derived.by(() => {
     let cards: Card[] = [];
 
-    // Start with all cards in collection
-    const collectionData = $collection;
-    for (const cardId in collectionData) {
-      if (collectionData[cardId] > 0) {
-        const card = $cardMap.get(cardId);
-        if (card) {
-          cards.push(card);
+    if (showAllCards) {
+      // All cards mode: require a search query
+      if (!searchQuery.trim()) {
+        return cards;
+      }
+      cards = [...$allCards];
+    } else {
+      // Collection mode: start with cards in collection
+      const collectionData = $collection;
+      for (const cardId in collectionData) {
+        if (collectionData[cardId] > 0) {
+          const card = $cardMap.get(cardId);
+          if (card) {
+            cards.push(card);
+          }
         }
       }
     }
@@ -54,7 +65,6 @@
     // Apply search filter
     if (searchQuery.trim()) {
       const queryLower = searchQuery.trim().toLowerCase();
-
       cards = cards.filter(card => {
         const cardName = getCardName(card).toLowerCase();
         return (
@@ -97,49 +107,37 @@
 
   function handleCardClick(cardId: string) {
     if (currentDeck) {
-      const collectionQty = $collection[cardId] || 0;
-      const deckQty = currentDeck.cards[cardId] || 0;
-      const available = collectionQty - deckQty;
-      if (available > 0) {
-        // Check GLC rules if GLC mode is enabled
-        if ($glcMode) {
-          const card = $cardMap.get(cardId);
-          if (card) {
-            const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
-            if (!glcResult.canAdd) {
-              glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
-              setTimeout(() => { glcWarning = null; }, 3000);
-              return;
-            }
+      // Check GLC rules if GLC mode is enabled
+      if ($glcMode) {
+        const card = $cardMap.get(cardId);
+        if (card) {
+          const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
+          if (!glcResult.canAdd) {
+            glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
+            setTimeout(() => { glcWarning = null; }, 3000);
+            return;
           }
         }
-        decks.addCardToDeck(currentDeck.id, cardId);
       }
+      decks.addCardToDeck(currentDeck.id, cardId);
     }
   }
 
   function handleAddCard(cardId: string) {
-    // For adding cards from the deck list (e.g., in sidebar or full deck view)
-    // This doesn't check collection availability since we're adding more of what's in deck
     if (currentDeck) {
-      const collectionQty = $collection[cardId] || 0;
-      const deckQty = currentDeck.cards[cardId] || 0;
-      const available = collectionQty - deckQty;
-      if (available > 0) {
-        // Check GLC rules if GLC mode is enabled
-        if ($glcMode) {
-          const card = $cardMap.get(cardId);
-          if (card) {
-            const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
-            if (!glcResult.canAdd) {
-              glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
-              setTimeout(() => { glcWarning = null; }, 3000);
-              return;
-            }
+      // Check GLC rules if GLC mode is enabled
+      if ($glcMode) {
+        const card = $cardMap.get(cardId);
+        if (card) {
+          const glcResult = validateGLCAddition(card, currentDeck.cards, $cardMap);
+          if (!glcResult.canAdd) {
+            glcWarning = glcResult.reason || 'Card cannot be added under GLC rules';
+            setTimeout(() => { glcWarning = null; }, 3000);
+            return;
           }
         }
-        decks.addCardToDeck(currentDeck.id, cardId);
       }
+      decks.addCardToDeck(currentDeck.id, cardId);
     }
   }
 
@@ -218,6 +216,21 @@
     mobileView = 'browse';
   }
 
+  // Sync strategy text when switching decks
+  $effect(() => {
+    strategyText = currentDeck?.strategy || '';
+  });
+
+  function handleStrategyInput(value: string) {
+    strategyText = value;
+    if (strategyTimeout) clearTimeout(strategyTimeout);
+    strategyTimeout = setTimeout(() => {
+      if (currentDeck) {
+        decks.setStrategy(currentDeck.id, value);
+      }
+    }, 500);
+  }
+
 // Save filters to localStorage whenever they change
   $effect(() => {
     saveFilters('deck-builder-filters', activeFilters);
@@ -280,7 +293,7 @@
               {currentDeck.name}
             </button>
           {/if}
-          <p class="text-gray-600 text-sm mt-1">Click cards from your collection to add to deck</p>
+          <p class="text-gray-600 text-sm mt-1">Click cards to add to deck</p>
         </div>
 
         <!-- Tab Buttons -->
@@ -329,6 +342,12 @@
                 />
                 <span class="ml-2 text-sm text-gray-700">GLC Mode (1 copy per card name)</span>
               </label>
+              <button
+                class="px-3 py-1 rounded-lg text-sm font-medium transition-colors {showAllCards ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                onclick={() => showAllCards = !showAllCards}
+              >
+                Show all cards
+              </button>
             </div>
           </div>
 
@@ -361,8 +380,13 @@
           {:else if displayedCards.length === 0}
             <div class="flex flex-col items-center justify-center py-20">
               <div class="text-gray-400 text-6xl mb-4">🔍</div>
-              <h2 class="text-2xl font-semibold text-gray-900 mb-2">No cards found</h2>
-              <p class="text-gray-600">Try adjusting your search or add cards to your collection</p>
+              {#if showAllCards && !searchQuery.trim()}
+                <h2 class="text-2xl font-semibold text-gray-900 mb-2">Search for cards</h2>
+                <p class="text-gray-600">Type a card name or set name to find cards</p>
+              {:else}
+                <h2 class="text-2xl font-semibold text-gray-900 mb-2">No cards found</h2>
+                <p class="text-gray-600">Try adjusting your search or filters</p>
+              {/if}
             </div>
           {:else}
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -397,15 +421,15 @@
                         >
                           −
                         </button>
-                        <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                        <span class="min-w-[2.5rem] text-center font-bold text-2xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] flex items-center justify-center gap-1">
+                          {#if availableQuantity < 0}<span class="text-yellow-300 text-lg">&#9888;</span>{/if}
                           {availableQuantity}
                         </span>
                         <button
                           type="button"
-                          class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl {availableQuantity <= 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                          class="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl flex items-center justify-center transition-colors shadow-xl"
                           onclick={(e) => { e.stopPropagation(); handleCardClick(card.id); }}
                           aria-label="Add to deck"
-                          disabled={availableQuantity <= 0}
                         >
                           +
                         </button>
@@ -516,6 +540,18 @@
           </button>
         </div>
 
+        <!-- Strategy Notes -->
+        <div class="mb-4">
+          <label for="strategy-input" class="block text-sm font-medium text-gray-700 mb-1">Strategy</label>
+          <textarea
+            id="strategy-input"
+            value={strategyText}
+            oninput={(e) => handleStrategyInput(e.currentTarget.value)}
+            class="w-full h-24 border border-gray-300 rounded-lg p-2 text-sm resize-y"
+            placeholder="Describe your deck strategy..."
+          ></textarea>
+        </div>
+
         <div class="border-t border-gray-300 mb-4"></div>
 
         <!-- Deck Card List -->
@@ -556,7 +592,7 @@
       <textarea
         bind:value={importText}
         class="w-full h-64 border border-gray-300 rounded-lg p-3 font-mono text-sm"
-        placeholder="* 1 Mimikyu TEU 112&#10;* 1 Sylveon CEC 155&#10;* 1 Eevee CEC 166"
+        placeholder="1 Mimikyu TEU 112&#10;* 1 Sylveon CEC 155&#10;1 Eevee CEC 166"
       ></textarea>
       <div class="flex gap-3 mt-4">
         <button

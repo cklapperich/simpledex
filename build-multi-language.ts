@@ -18,6 +18,7 @@ const WESTERN_LANGUAGES = ['en'];
 const PTCGO_CODE_FALLBACKS: Record<string, string> = {
   'Southern Islands': 'SI',
   'SWSH Black Star Promos': 'PR-SW',
+  'Yellow A Alternate': 'HIF',  // Hidden Fates Shiny Vault subset
 };
 
 function getPtcgoCodeFallback(setName: string): string | undefined {
@@ -101,6 +102,14 @@ function extractNames(fileContent: string, expectedLanguages: string[]): Record<
 }
 
 /**
+ * Extract attack data from tcgdex TypeScript source files using regex.
+ *
+ * NOTE: This regex-based approach is fragile and should be replaced with proper
+ * TypeScript imports in the future. A better approach would be:
+ *   const card = await import(cardFilePath);
+ *   return card.default.attacks;
+ * This would eliminate all regex parsing issues and be more maintainable.
+ *
  * Extract attack data (use English or first available language for names/effects)
  */
 function extractAttacks(fileContent: string, primaryLang: string): Array<{
@@ -112,7 +121,9 @@ function extractAttacks(fileContent: string, primaryLang: string): Array<{
   const attacks: Array<{ name: string; cost: string[]; damage?: string; effect?: string }> = [];
 
   // Match attacks array, handling nested brackets by looking for ],\n at root indentation (one tab)
-  const attacksMatch = fileContent.match(/attacks:\s*\[([\s\S]*?)\n\t\],/);
+  // OLD - brittle, expects exact whitespace/brace pattern: /attacks:\s*\[([\s\S]*?)\n\t\],/
+  // NEW - flexible, handles any closing pattern
+  const attacksMatch = fileContent.match(/attacks:\s*\[([\s\S]*?)\],/);
   if (!attacksMatch) return undefined;
 
   const attacksStr = attacksMatch[1];
@@ -162,6 +173,11 @@ function extractAttacks(fileContent: string, primaryLang: string): Array<{
 }
 
 /**
+ * Extract ability data from tcgdex TypeScript source files using regex.
+ *
+ * NOTE: This regex-based approach is fragile and should be replaced with proper
+ * TypeScript imports in the future. See extractAttacks() comment for details.
+ *
  * Extract ability data (use English or first available language)
  */
 function extractAbilities(fileContent: string, primaryLang: string): Array<{
@@ -172,7 +188,9 @@ function extractAbilities(fileContent: string, primaryLang: string): Array<{
   const abilities: Array<{ name: string; effect: string; type: string }> = [];
 
   // Match abilities array, handling nested brackets by looking for closing bracket at root indentation
-  const abilitiesMatch = fileContent.match(/abilities:\s*\[([\s\S]*?)\n\t\]/);
+  // OLD - brittle, expects exact pattern without comma: /abilities:\s*\[([\s\S]*?)\n\t\]/
+  // NEW - flexible, handles any closing pattern
+  const abilitiesMatch = fileContent.match(/abilities:\s*\[([\s\S]*?)\]/);
   if (!abilitiesMatch) return undefined;
 
   const abilitiesStr = abilitiesMatch[1];
@@ -604,6 +622,25 @@ async function processDirectory(
       // Fill in missing rules from pokemon-tcg-data
       if ((!card.rules || card.rules.length === 0) && ptcgCard?.rules && ptcgCard.rules.length > 0) {
         card.rules = ptcgCard.rules;
+      }
+
+      // Fill in missing attacks from pokemon-tcg-data
+      if ((!card.attacks || card.attacks.length === 0) && ptcgCard?.attacks && ptcgCard.attacks.length > 0) {
+        card.attacks = ptcgCard.attacks.map(attack => ({
+          name: attack.name,
+          cost: attack.cost,
+          damage: attack.damage,
+          effect: attack.text
+        }));
+      }
+
+      // Fill in missing abilities from pokemon-tcg-data
+      if ((!card.abilities || card.abilities.length === 0) && ptcgCard?.abilities && ptcgCard.abilities.length > 0) {
+        card.abilities = ptcgCard.abilities.map(ability => ({
+          name: ability.name,
+          effect: ability.text,
+          type: ability.type
+        }));
       }
 
       // Deduplicate within tcgdex: check if a card with the same normalized ID already exists
