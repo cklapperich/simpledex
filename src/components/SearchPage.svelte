@@ -15,7 +15,6 @@
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection, totalCards } from '../stores/collection';
   import { wishlist, totalWishlisted } from '../stores/wishlist';
-  import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber, sortCardsByReleaseDate } from '../utils/cardSorting';
   import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { parseSearchQuery, hasFilters } from '../utils/searchQueryParser';
@@ -42,7 +41,6 @@
     searchQuery = '';
     visibleCount = 60;
   });
-  let modernOnly = $state(false);
   let indexReady = $state(false);
   let searchIndex: Document<Card>;
   let activeFilters = $state(new SvelteSet<string>());
@@ -129,11 +127,6 @@
     // Apply structured search filters (artist:, etc.)
     if (hasSearchFilters) {
       cards = cards.filter(card => matchesSearchFilters(card, searchFilters));
-    }
-
-    // Apply modern only filter
-    if (modernOnly) {
-      cards = cards.filter(card => MODERN_SERIES.includes(card.series));
     }
 
     // Apply active filters (type, rarity, etc. from FilterColumn)

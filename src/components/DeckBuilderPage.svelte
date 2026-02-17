@@ -13,14 +13,12 @@
   import { activeDeckId, activeView } from '../stores/view';
   import { glcMode } from '../stores/glcMode';
   import { exportToPTCGO, importFromPTCGO, validateDeck, validateGLCAddition, validateDeckGLC } from '../utils/deckUtils';
-  import { MODERN_SERIES } from '../constants';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
   import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { getCardImageUrl } from '../utils/cardImage';
   import { getCardName } from '../utils/cardUtils';
 
   let searchQuery = $state('');
-  let modernOnly = $state(false);
   let activeFilters = $state(new SvelteSet<string>(loadFilters('deck-builder-filters')));
   let editingName = $state(false);
   let tempName = $state('');
@@ -73,11 +71,6 @@
           (card.setNumber || '').toLowerCase().includes(queryLower)
         );
       });
-    }
-
-    // Apply modern only filter
-    if (modernOnly) {
-      cards = cards.filter(card => MODERN_SERIES.includes(card.series));
     }
 
     // Apply active filters
@@ -328,14 +321,6 @@
               <label class="inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  bind:checked={modernOnly}
-                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span class="ml-2 text-sm text-gray-700">Modern Only (Black & White onwards)</span>
-              </label>
-              <label class="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
                   checked={$glcMode}
                   onchange={() => glcMode.toggle()}
                   class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
@@ -489,19 +474,6 @@
         <div class="mb-4">
           <div class="text-2xl font-bold text-gray-900">{validation.cardCount} / 60</div>
           <div class="text-sm text-gray-600">cards in deck</div>
-        </div>
-
-        <!-- GLC Mode Toggle -->
-        <div class="mb-4">
-          <label class="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={$glcMode}
-              onchange={() => glcMode.toggle()}
-              class="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-            />
-            <span class="ml-2 text-sm text-gray-700">GLC Mode</span>
-          </label>
         </div>
 
         <!-- Validation Warnings -->

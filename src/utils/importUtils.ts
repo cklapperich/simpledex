@@ -1,5 +1,101 @@
 import Papa from 'papaparse';
 import type { Collection, Card, ImportResult, ImportError } from '../types';
+import { normalizeCardId } from './cardIdUtils';
+
+/**
+ * Parses pokemontcg.io deck list format
+ * Format: {quantity} {cardName} {cardId}
+ * Example: "1 Arven sv4pt5-235"
+ * Returns Collection object or ImportResult with errors
+ */
+export function parsePokemonCardIO(content: string): {
+  collection?: Collection;
+  result?: ImportResult;
+} {
+  const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+  if (lines.length === 0) {
+    return {
+      result: {
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['File is empty']
+      }
+    };
+  }
+
+  const collection: Collection = {};
+  const errors: string[] = [];
+  const detailedErrors: ImportError[] = [];
+  let skipped = 0;
+  let lineNum = 0;
+
+  for (const line of lines) {
+    lineNum++;
+
+    // Skip comment lines
+    if (line.startsWith('//')) {
+      continue;
+    }
+
+    // Parse format: {quantity} {cardName} {cardId}
+    // Match: number, then space, then anything, then space, then setId-cardNumber
+    const match = line.match(/^(\d+)\s+(.+?)\s+([a-z0-9]+(?:pt\d)?-[A-Z0-9_-]+)$/i);
+
+    if (!match) {
+      const errorMsg = `Invalid format (expected: "quantity cardName cardId")`;
+      errors.push(`Line ${lineNum}: ${errorMsg}`);
+      detailedErrors.push({
+        line: lineNum,
+        message: errorMsg,
+        type: 'parsing'
+      });
+      skipped++;
+      continue;
+    }
+
+    const [, quantityStr, cardName, rawCardId] = match;
+
+    // Validate quantity
+    const quantity = parseInt(quantityStr);
+    if (isNaN(quantity) || quantity < 1 || quantity > 99) {
+      const errorMsg = `Invalid quantity "${quantityStr}" (must be 1-99)`;
+      errors.push(`Line ${lineNum}: ${errorMsg}`);
+      detailedErrors.push({
+        line: lineNum,
+        cardId: rawCardId,
+        cardName,
+        message: errorMsg,
+        type: 'quantity'
+      });
+      skipped++;
+      continue;
+    }
+
+    // Normalize the card ID (handles pt notation, leading zeros, etc.)
+    const normalizedCardId = normalizeCardId(rawCardId);
+
+    // Add to collection (merge duplicates by adding quantities)
+    collection[normalizedCardId] = (collection[normalizedCardId] || 0) + quantity;
+  }
+
+  const imported = Object.keys(collection).length;
+
+  if (imported === 0 && lines.length > 0) {
+    return {
+      result: {
+        success: false,
+        imported: 0,
+        skipped,
+        errors: errors.length > 0 ? errors : ['No valid cards found'],
+        detailedErrors
+      }
+    };
+  }
+
+  return { collection };
+}
 
 /**
  * Parses CSV content and returns a Collection object

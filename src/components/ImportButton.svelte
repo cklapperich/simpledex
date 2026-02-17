@@ -1,7 +1,7 @@
 <script lang="ts">
   import { collection, totalCards } from '../stores/collection';
   import { cardMap } from '../stores/cards';
-  import { parseCSV, validateImport } from '../utils/importUtils';
+  import { parseCSV, parsePokemonCardIO, validateImport } from '../utils/importUtils';
   import type { Collection, ImportResult } from '../types';
   import Modal from './Modal.svelte';
 
@@ -26,7 +26,18 @@
 
     try {
       const content = await file.text();
-      const parseResult = parseCSV(content);
+
+      // Detect format: pokemontcg.io format vs CSV
+      // pokemontcg.io format has lines like: "1 Arven sv4pt5-235"
+      // Look for pattern: number followed by text followed by setId-cardNumber
+      const isPokemonCardIO = /^\d+\s+.+?\s+[a-z0-9]+(?:pt\d)?-[A-Z0-9_-]+/im.test(content);
+
+      let parseResult;
+      if (isPokemonCardIO) {
+        parseResult = parsePokemonCardIO(content);
+      } else {
+        parseResult = parseCSV(content);
+      }
 
       // Check for parsing errors
       if (parseResult.result) {
@@ -107,7 +118,7 @@
 
 <input
   type="file"
-  accept=".csv"
+  accept=".csv,.txt"
   bind:this={fileInput}
   onchange={handleFileSelect}
   class="hidden"
