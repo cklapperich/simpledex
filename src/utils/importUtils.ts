@@ -1,6 +1,5 @@
 import Papa from 'papaparse';
 import type { Collection, Card, ImportResult, ImportError } from '../types';
-import { normalizeCardId } from './cardIdUtils';
 
 /**
  * Parses pokemontcg.io deck list format
@@ -73,11 +72,8 @@ export function parsePokemonCardIO(content: string): {
       continue;
     }
 
-    // Normalize the card ID (handles pt notation, leading zeros, etc.)
-    const normalizedCardId = normalizeCardId(rawCardId);
-
     // Add to collection (merge duplicates by adding quantities)
-    collection[normalizedCardId] = (collection[normalizedCardId] || 0) + quantity;
+    collection[rawCardId] = (collection[rawCardId] || 0) + quantity;
   }
 
   const imported = Object.keys(collection).length;

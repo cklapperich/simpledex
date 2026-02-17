@@ -1,8 +1,7 @@
 // Image source information
 export interface CardImage {
   url: string;
-  source: 'tcgdex' | 'pokemontcg-io';
-  size?: 'small' | 'large' | 'low' | 'high';
+  size?: 'small' | 'large';
 }
 
 // Card structure from cards-western.json
@@ -20,7 +19,6 @@ export interface Card {
   ptcgoCode?: string; // PTCGO set code (e.g., "TEU", "CEC", "SVE")
   rarity: string; // Card rarity (e.g., "Common", "Rare", "Ultra Rare")
   illustrator?: string; // Card illustrator/artist name
-  // NEW METADATA from TCGdex
   hp?: number; // HP for Pokémon cards
   attacks?: Attack[]; // Attacks for Pokémon cards
   abilities?: Ability[]; // Abilities for Pokémon cards
@@ -29,9 +27,8 @@ export interface Card {
   retreatCost?: string[]; // Retreat cost (energy types)
   flavorText?: string;   // Pokedex entry text
   rules?: string[];      // Trainer/Energy effect text
-  // TCGdex metadata for dynamic URLs (image constructed at runtime)
-  seriesId?: string; // TCGdex series ID for constructing image URLs
-  setId?: string; // TCGdex set ID for constructing image URLs
+  legalities?: { standard?: string; expanded?: string; unlimited?: string };
+  regulationMark?: string;
   // Image URLs (ordered: primary first, backup second)
   images?: CardImage[];
 }

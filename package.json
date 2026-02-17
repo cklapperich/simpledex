@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsx scripts/download-model.ts && vite build",
-    "build:cards": "git submodule update --init --remote && tsx build-multi-language.ts",
+    "build:cards": "git submodule update --init --remote && tsx build-ptcg.ts",
+    "migrate:ptcg": "tsx migrate-to-ptcg.ts",
+    "migrate:ptcg:execute": "tsx migrate-to-ptcg.ts --execute",
     "build:local": "npm run build:cards && vite build",
     "preview": "vite preview",
     "migrate:dry-run": "tsx migrate-card-ids.ts",
