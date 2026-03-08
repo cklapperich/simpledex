@@ -32,7 +32,7 @@
   let mobileView = $state<'browse' | 'deck'>('browse');
   let leftPanelTab = $state<'browse' | 'fullDeck'>('browse');
   let glcWarning = $state<string | null>(null);
-  let showAllCards = $state(false);
+  let showAllCards = $state(true);
   let strategyText = $state('');
   let strategyTimeout: ReturnType<typeof setTimeout> | null = null;
 
