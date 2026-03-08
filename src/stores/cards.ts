@@ -1,124 +1,50 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { Card } from '../types';
-import type { CardRow } from '../lib/supabaseTypes';
-import { supabase } from '../lib/supabase';
 import { loadSetCodes } from '../utils/setCodes';
-
-function mapRowToCard(row: CardRow): Card {
-  return {
-    id:             row.id,
-    set:            row.set_name,
-    number:         row.number,
-    setNumber:      row.set_number ?? undefined,
-    releaseDate:    row.release_date,
-    series:         row.series,
-    supertype:      row.supertype,
-    rarity:         row.rarity,
-    hp:             row.hp ?? undefined,
-    ptcgoCode:      row.ptcgo_code ?? undefined,
-    evolveFrom:     row.evolve_from ?? undefined,
-    flavorText:     row.flavor_text ?? undefined,
-    regulationMark: row.regulation_mark ?? undefined,
-    illustrator:    row.illustrator ?? undefined,
-    subtypes:       row.subtypes,
-    types:          row.types,
-    retreatCost:    row.retreat_cost,
-    rules:          row.rules,
-    names:          row.names as Record<string, string>,
-    attacks:        row.attacks as Card['attacks'],
-    abilities:      row.abilities as Card['abilities'],
-    weaknesses:     row.weaknesses as Card['weaknesses'],
-    resistances:    row.resistances as Card['resistances'],
-    images:         row.images as Card['images'],
-    legalities:     row.legalities as Card['legalities'],
-  };
-}
 
 function createCardsStore() {
   const allCards = writable<Card[]>([]);
   const isLoading = writable<boolean>(false);
   const error = writable<string | null>(null);
+  let hasLoaded = false;
 
-  let hasInitialLoad = false;
+  async function init() {
+    if (hasLoaded || get(isLoading)) return;
 
-  /**
-   * Load cards from Supabase
-   */
-  async function loadCards(): Promise<Card[]> {
-    console.log('Loading cards...');
     isLoading.set(true);
     error.set(null);
 
     try {
-      const { count, error: countErr } = await supabase
-        .from('cards')
-        .select('*', { count: 'exact', head: true });
-      if (countErr) throw new Error(countErr.message);
-
-      const PAGE = 1000;
-      const pages = Math.ceil((count ?? 0) / PAGE);
-      const results = await Promise.all(
-        Array.from({ length: pages }, (_, i) =>
-          supabase.from('cards').select('*').range(i * PAGE, (i + 1) * PAGE - 1)
-        )
-      );
-      const rows = results.flatMap(r => {
-        if (r.error) throw new Error(r.error.message);
-        return r.data ?? [];
-      });
-      console.log(`Loaded ${rows.length} cards`);
-      return rows.map(row => mapRowToCard(row as CardRow));
-
+      const [response] = await Promise.all([
+        fetch('/cards-western.json'),
+        loadSetCodes(),
+      ]);
+      if (!response.ok) throw new Error('Failed to load cards');
+      const cards: Card[] = await response.json();
+      allCards.set(cards);
+      hasLoaded = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      error.set(message);
+      error.set(err instanceof Error ? err.message : 'Unknown error');
       console.error('Error loading cards:', err);
-      throw err;
     } finally {
       isLoading.set(false);
     }
   }
 
-  /**
-   * Initialize cards on first use
-   */
-  async function init() {
-    if (!hasInitialLoad) {
-      console.log('Initializing cards store');
-      try {
-        // Load cards and set codes in parallel
-        const [cards] = await Promise.all([
-          loadCards(),
-          loadSetCodes()
-        ]);
-        allCards.set(cards);
-        hasInitialLoad = true;
-      } catch (err) {
-        console.error('Failed to initialize cards store:', err);
-      }
-    }
-  }
-
-  // Derived store for cardMap - O(1) lookups by card ID
   const cardMap = derived(allCards, $cards => {
     const map = new Map<string, Card>();
     for (const card of $cards) {
-      if (!card || !card.id) continue;
-      map.set(card.id, card);
+      if (card?.id) map.set(card.id, card);
     }
     return map;
   });
 
-  // Derived store for setMap - instant set name lookups
   const setMap = derived(allCards, $cards => {
     const map = new Map<string, Card[]>();
     for (const card of $cards) {
-      if (!card || !card.set) continue;
-
+      if (!card?.set) continue;
       const key = card.set.toLowerCase();
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
+      if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(card);
     }
     return map;
@@ -130,18 +56,16 @@ function createCardsStore() {
     setMap: { subscribe: setMap.subscribe },
     isLoading: { subscribe: isLoading.subscribe },
     error: { subscribe: error.subscribe },
-    init
+    init,
   };
 }
 
 export const cards = createCardsStore();
 
-// Export individual stores with clear names
 export const allCards = { subscribe: cards.subscribe };
 export const cardMap = cards.cardMap;
 export const setMap = cards.setMap;
 export const isLoading = cards.isLoading;
 export const cardsError = cards.error;
 
-// Initialize the store
 cards.init();
