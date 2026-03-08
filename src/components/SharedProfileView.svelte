@@ -15,7 +15,7 @@
   import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { resolveShareCode, loadUserCollection, loadUserWishlist } from '../utils/shareUtils';
   import { getCardName } from '../utils/cardUtils';
-  import { activeView } from '../stores/view';
+  import { navigateTo } from '../stores/view';
 
   interface Props {
     shareCode: string;
@@ -206,7 +206,7 @@
         <h2 class="text-2xl font-semibold text-gray-900 mb-2">{error}</h2>
         <p class="text-gray-600 mb-4">The share link may be invalid or expired</p>
         <button
-          onclick={() => activeView.set('search')}
+          onclick={() => navigateTo('search')}
           class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
           Go to Search
@@ -230,7 +230,7 @@
                 <span class="text-gray-900 font-medium">Want your own collection?</span>
               </div>
               <button
-                onclick={() => activeView.set('search')}
+                onclick={() => navigateTo('search')}
                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
                 Sign In

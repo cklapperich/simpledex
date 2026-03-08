@@ -97,6 +97,7 @@ export interface ImportResult {
   skipped: number;
   errors: string[];
   detailedErrors?: ImportError[];
+  cards: Record<string, number>;
 }
 
 // Detailed error information for imports

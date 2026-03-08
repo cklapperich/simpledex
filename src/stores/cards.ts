@@ -1,6 +1,38 @@
 import { writable, derived } from 'svelte/store';
 import type { Card } from '../types';
+import type { CardRow } from '../lib/supabaseTypes';
+import { supabase } from '../lib/supabase';
 import { loadSetCodes } from '../utils/setCodes';
+
+function mapRowToCard(row: CardRow): Card {
+  return {
+    id:             row.id,
+    set:            row.set_name,
+    number:         row.number,
+    setNumber:      row.set_number ?? undefined,
+    releaseDate:    row.release_date,
+    series:         row.series,
+    supertype:      row.supertype,
+    rarity:         row.rarity,
+    hp:             row.hp ?? undefined,
+    ptcgoCode:      row.ptcgo_code ?? undefined,
+    evolveFrom:     row.evolve_from ?? undefined,
+    flavorText:     row.flavor_text ?? undefined,
+    regulationMark: row.regulation_mark ?? undefined,
+    illustrator:    row.illustrator ?? undefined,
+    subtypes:       row.subtypes,
+    types:          row.types,
+    retreatCost:    row.retreat_cost,
+    rules:          row.rules,
+    names:          row.names as Record<string, string>,
+    attacks:        row.attacks as Card['attacks'],
+    abilities:      row.abilities as Card['abilities'],
+    weaknesses:     row.weaknesses as Card['weaknesses'],
+    resistances:    row.resistances as Card['resistances'],
+    images:         row.images as Card['images'],
+    legalities:     row.legalities as Card['legalities'],
+  };
+}
 
 function createCardsStore() {
   const allCards = writable<Card[]>([]);
@@ -10,7 +42,7 @@ function createCardsStore() {
   let hasInitialLoad = false;
 
   /**
-   * Load cards from JSON file
+   * Load cards from Supabase
    */
   async function loadCards(): Promise<Card[]> {
     console.log('Loading cards...');
@@ -18,15 +50,24 @@ function createCardsStore() {
     error.set(null);
 
     try {
-      const response = await fetch('/cards-western.json');
-      if (!response.ok) {
-        throw new Error('Failed to load cards');
-      }
+      const { count, error: countErr } = await supabase
+        .from('cards')
+        .select('*', { count: 'exact', head: true });
+      if (countErr) throw new Error(countErr.message);
 
-      const cards: Card[] = await response.json();
-      console.log(`Loaded ${cards.length} cards`);
-
-      return cards;
+      const PAGE = 1000;
+      const pages = Math.ceil((count ?? 0) / PAGE);
+      const results = await Promise.all(
+        Array.from({ length: pages }, (_, i) =>
+          supabase.from('cards').select('*').range(i * PAGE, (i + 1) * PAGE - 1)
+        )
+      );
+      const rows = results.flatMap(r => {
+        if (r.error) throw new Error(r.error.message);
+        return r.data ?? [];
+      });
+      console.log(`Loaded ${rows.length} cards`);
+      return rows.map(row => mapRowToCard(row as CardRow));
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';

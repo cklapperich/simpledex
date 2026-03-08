@@ -17,7 +17,8 @@
     "model:download": "tsx scripts/download-model.ts",
     "test:inference": "tsx scripts/test-inferencing.ts",
     "poc:search": "tsx src/mobileclip-poc/index.ts --search",
-    "poc:build": "tsx src/mobileclip-poc/index.ts --build"
+    "poc:build": "tsx src/mobileclip-poc/index.ts --build",
+    "populate:cards": "node scripts/populate-cards.js"
   },
   "keywords": [],
   "author": "",

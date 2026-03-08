@@ -36,6 +36,34 @@ export interface DeckRow {
   TCG: string
 }
 
+export interface CardRow {
+  id: string
+  set_name: string
+  number: string
+  set_number: string | null
+  release_date: string
+  series: string
+  supertype: string
+  rarity: string
+  hp: number | null
+  ptcgo_code: string | null
+  evolve_from: string | null
+  flavor_text: string | null
+  regulation_mark: string | null
+  illustrator: string | null
+  subtypes: string[]
+  types: string[]
+  retreat_cost: string[]
+  rules: string[]
+  names: Json
+  attacks: Json
+  abilities: Json
+  weaknesses: Json
+  resistances: Json
+  images: Json
+  legalities: Json
+}
+
 export type Json =
   | string
   | number
@@ -156,6 +184,12 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      cards: {
+        Row: CardRow
+        Insert: Omit<CardRow, never>
+        Update: Partial<CardRow>
         Relationships: []
       }
     }

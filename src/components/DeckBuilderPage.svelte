@@ -10,9 +10,11 @@
   import { allCards, cardMap, setMap, isLoading as cardsLoading } from '../stores/cards';
   import { collection } from '../stores/collection';
   import { decks } from '../stores/decks';
-  import { activeDeckId, activeView } from '../stores/view';
+  import { activeDeckId } from '../stores/view';
+  import { navigateTo } from '../stores/view';
   import { glcMode } from '../stores/glcMode';
   import { exportToPTCGO, importFromPTCGO, validateDeck, validateGLCAddition, validateDeckGLC } from '../utils/deckUtils';
+  import type { ImportError } from '../types';
   import { sortCardsBySetAndNumber } from '../utils/cardSorting';
   import { matchesFilters, saveFilters, loadFilters } from '../utils/cardFilters';
   import { getCardImageUrl } from '../utils/cardImage';
@@ -25,6 +27,8 @@
   let importText = $state('');
   let showImportModal = $state(false);
   let showFilterModal = $state(false);
+  let importErrors = $state<ImportError[]>([]);
+  let importSuccessCount = $state(0);
   let mobileView = $state<'browse' | 'deck'>('browse');
   let leftPanelTab = $state<'browse' | 'fullDeck'>('browse');
   let glcWarning = $state<string | null>(null);
@@ -178,27 +182,43 @@
 
   function doImport() {
     if (currentDeck && importText.trim()) {
-      const importedCards = importFromPTCGO(importText, $cardMap);
+      const result = importFromPTCGO(importText, $cardMap);
 
-      // Replace deck cards with imported cards
-      for (const [cardId, quantity] of Object.entries(importedCards)) {
+      // Clear existing deck cards before importing
+      decks.clearDeck(currentDeck.id);
+
+      // Set imported card quantities
+      for (const [cardId, quantity] of Object.entries(result.cards)) {
         decks.setCardQuantity(currentDeck.id, cardId, quantity);
       }
 
-      showImportModal = false;
+      importSuccessCount = result.imported;
+      importErrors = result.detailedErrors || [];
       importText = '';
-      alert('Deck imported successfully!');
+
+      if (result.success) {
+        showImportModal = false;
+        importErrors = [];
+      }
+      // If there are errors, keep modal open to show them
     }
   }
 
   function closeImportModal() {
     showImportModal = false;
     importText = '';
+    importErrors = [];
+    importSuccessCount = 0;
   }
 
   function goBackToDecks() {
-    activeDeckId.set(null);
-    activeView.set('decks');
+    navigateTo('decks');
+  }
+
+  function handleClearDeck() {
+    if (currentDeck && confirm('Clear all cards from this deck?')) {
+      decks.clearDeck(currentDeck.id);
+    }
   }
 
   function showDeckView() {
@@ -496,7 +516,7 @@
           </div>
         {/if}
 
-        <!-- Export/Import Buttons -->
+        <!-- Export/Import/Clear Buttons -->
         <div class="flex gap-2 mb-4">
           <button
             onclick={handleExport}
@@ -509,6 +529,12 @@
             class="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
           >
             Import
+          </button>
+          <button
+            onclick={handleClearDeck}
+            class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Clear
           </button>
         </div>
 
@@ -560,7 +586,23 @@
       onkeydown={(e) => e.stopPropagation()}
     >
       <h2 id="import-modal-title" class="text-2xl font-bold mb-4">Import Deck (PTCGO Format)</h2>
-      <p class="text-sm text-gray-600 mb-3">Paste your PTCGO deck list below:</p>
+      <p class="text-sm text-gray-600 mb-3">Paste your PTCGO deck list below. Importing will replace all existing cards.</p>
+
+      {#if importErrors.length > 0}
+        <div class="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div class="text-sm font-semibold text-yellow-800 mb-1">
+            Imported {importSuccessCount} cards. {importErrors.length} card{importErrors.length === 1 ? '' : 's'} not found:
+          </div>
+          <div class="max-h-32 overflow-y-auto">
+            {#each importErrors as error, index (index)}
+              <div class="text-xs text-yellow-700">
+                Line {error.line}: {error.cardName || 'Unknown'}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
       <textarea
         bind:value={importText}
         class="w-full h-64 border border-gray-300 rounded-lg p-3 font-mono text-sm"
@@ -577,7 +619,7 @@
           onclick={closeImportModal}
           class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg font-medium"
         >
-          Cancel
+          {importErrors.length > 0 ? 'Close' : 'Cancel'}
         </button>
       </div>
     </div>

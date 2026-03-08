@@ -1,4 +1,4 @@
-import type { Card, Deck, DeckValidation } from '../types';
+import type { Card, Deck, DeckValidation, ImportResult, ImportError } from '../types';
 import { MODERN_SERIES } from '../constants';
 import { getCardName } from './cardUtils';
 
@@ -52,8 +52,12 @@ export function exportToPTCGO(deck: Deck, cards: Map<string, Card>): string {
  * Also supports ptcgoCode format: * 2 Charizard TEU 14
  * Returns: { cardId -> quantity }
  */
-export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Record<string, number> {
-  const result: Record<string, number> = {};
+export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): ImportResult {
+  const cardMap: Record<string, number> = {};
+  const errors: ImportError[] = [];
+  let imported = 0;
+  let skipped = 0;
+  let lineNumber = 0;
 
   // Build set of known set names and ptcgoCodes (lowercase for matching)
   const knownSets = new Set<string>();
@@ -86,6 +90,7 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
   }
 
   for (const line of ptcgoText.split('\n')) {
+    lineNumber++;
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
 
@@ -217,13 +222,27 @@ export function importFromPTCGO(ptcgoText: string, cards: Map<string, Card>): Re
     }
 
     if (foundCard) {
-      result[foundCard.id] = quantity;
+      cardMap[foundCard.id] = quantity;
+      imported++;
     } else {
-      console.warn(`Card not found: ${middle} ${cardNumber}`);
+      skipped++;
+      errors.push({
+        line: lineNumber,
+        cardName: middle.trim(),
+        message: `Card not found: ${middle} ${cardNumber}`,
+        type: 'validation'
+      });
     }
   }
 
-  return result;
+  return {
+    success: errors.length === 0,
+    imported,
+    skipped,
+    errors: errors.map(e => e.message),
+    detailedErrors: errors,
+    cards: cardMap
+  };
 }
 
 /**

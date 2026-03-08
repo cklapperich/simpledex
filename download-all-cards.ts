@@ -2,7 +2,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import pLimit from 'p-limit';
-import { cardIdToFilename } from './src/utils/cardIdUtils.js';
+
+const FILESYSTEM_CHAR_MAP: Record<string, string> = {
+  '!': '_excl_', '?': '_qmark_', '*': '_star_', '<': '_lt_', '>': '_gt_',
+  '"': '_quot_', '|': '_pipe_', '\\': '_bslash_', '/': '_slash_', ':': '_colon_', '%': '_pct_',
+};
+
+function cardIdToFilename(id: string): string {
+  let result: string;
+  try { result = decodeURIComponent(id); } catch { result = id; }
+  for (const [char, replacement] of Object.entries(FILESYSTEM_CHAR_MAP)) {
+    result = result.split(char).join(replacement);
+  }
+  return result;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

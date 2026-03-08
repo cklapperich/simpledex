@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { activeView, type View } from '../stores/view';
-
-  function navigateTo(view: View) {
-    activeView.set(view);
-  }
+  import { activeView } from '../stores/view';
+  import { navigateTo, type View } from '../stores/view';
 </script>
 
 <nav class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 pb-safe z-50 lg:hidden">

@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { activeView, type View } from '../stores/view';
-
-  function navigateTo(view: View) {
-    activeView.set(view);
-  }
+  import { activeView } from '../stores/view';
+  import { navigateTo, type View } from '../stores/view';
 </script>
 
 <aside class="w-16 bg-gray-800 text-white h-screen hidden lg:flex flex-col">

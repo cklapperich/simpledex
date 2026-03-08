@@ -9,18 +9,11 @@
   import SyncIndicator from './components/SyncIndicator.svelte';
   import ScanPage from './components/scan/ScanPage.svelte';
   import { Toaster } from 'svelte-sonner';
-  import { activeView } from './stores/view';
+  import { activeView, initRouter } from './stores/view';
   import { activeShareCode } from './stores/share';
 
-  // Detect share URL on mount and when URL changes
-  $effect(() => {
-    const path = window.location.pathname;
-    const match = path.match(/^\/share\/([a-zA-Z0-9]{8})$/);
-    if (match) {
-      activeView.set('shared');
-      activeShareCode.set(match[1]);
-    }
-  });
+  // Initialize URL routing on mount
+  initRouter();
 </script>
 
 {#if $activeView === 'shared'}

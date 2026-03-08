@@ -297,6 +297,23 @@ function createDecksStore() {
       }
     },
 
+    clearDeck: (deckId: string): void => {
+      let updatedDeck: Deck | null = null;
+
+      update(decks => {
+        if (!decks[deckId]) return decks;
+        updatedDeck = { ...decks[deckId], cards: {} };
+        return {
+          ...decks,
+          [deckId]: updatedDeck
+        };
+      });
+
+      if (currentUserId && updatedDeck) {
+        syncDeckToSupabase(updatedDeck);
+      }
+    },
+
     getDeck: (deckId: string): Deck | undefined => {
       return get({ subscribe })[deckId];
     },

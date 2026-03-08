@@ -1,16 +1,14 @@
 <script lang="ts">
   import { decks } from '../stores/decks';
-  import { activeView, activeDeckId } from '../stores/view';
+  import { navigateTo } from '../stores/view';
 
   function createNewDeck() {
     const deckId = decks.createDeck('New Deck');
-    activeDeckId.set(deckId);
-    activeView.set('deckbuilder');
+    navigateTo('deckbuilder', deckId);
   }
 
   function openDeck(deckId: string) {
-    activeDeckId.set(deckId);
-    activeView.set('deckbuilder');
+    navigateTo('deckbuilder', deckId);
   }
 
   function deleteDeck(deckId: string, deckName: string) {
