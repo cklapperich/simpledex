@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsx scripts/download-model.ts && vite build",
-    "build:cards": "git submodule update --init --remote && tsx build-ptcg.ts && cp public/cards-western.json ../LobsterTCG/src/plugins/pokemon/cards-western.json && cp public/set-codes.json ../LobsterTCG/src/plugins/pokemon/set-codes.json",
+    "build:cards": "git submodule update --init --remote && tsx build-ptcg.ts && cp public/cards-western.json ../LobsterTCG/src/plugins/pokemon/cards-western.json && cp public/set-codes.json ../LobsterTCG/src/plugins/pokemon/set-codes.json && mkdir -p ../LobsterTCG/src/plugins/pokemon/pokemon-shared && cp src/lib/pokemon-shared/types.ts ../LobsterTCG/src/plugins/pokemon/pokemon-shared/types.ts && cp src/lib/pokemon-shared/constants.ts ../LobsterTCG/src/plugins/pokemon/pokemon-shared/constants.ts && cp src/lib/pokemon-shared/ptcgoParser.ts ../LobsterTCG/src/plugins/pokemon/pokemon-shared/ptcgoParser.ts",
     "migrate:ptcg": "tsx migrate-to-ptcg.ts",
     "migrate:ptcg:execute": "tsx migrate-to-ptcg.ts --execute",
     "build:local": "npm run build:cards && vite build",
